@@ -33,6 +33,7 @@ app.post("/api/voice/turn", async (req, res) => {
     const timings = {};
     let question = String(req.body.question || "").trim();
     let transcript = question;
+    let sttRaw = null;
     const cost = {};
 
     if (!question) {
@@ -41,6 +42,9 @@ app.post("/api/voice/turn", async (req, res) => {
         return res.status(400).json({ error: "Provide question or audio" });
       }
       const sttStart = Date.now();
+      console.log(
+        `[turn] audio received: ${audio.length} base64 chars, mime=${req.body.mimeType || "audio/webm"}, duration=${req.body.durationMs || "?"}ms`
+      );
       const stt = await gemini.transcribe({
         base64: audio,
         mimeType: String(req.body.mimeType || "audio/webm"),
@@ -48,13 +52,26 @@ app.post("/api/voice/turn", async (req, res) => {
       transcript = stt.text;
       question = transcript;
       timings.sttMs = Date.now() - sttStart;
+      sttRaw = JSON.stringify(
+        {
+          status: stt.raw?.status,
+          text: stt.text,
+          usage: stt.usage,
+          steps: stt.raw?.steps,
+          errors: stt.raw?.errors,
+        },
+        null,
+        2
+      );
       cost.sttInr = Number(
         ((Number(req.body.durationMs || 0) / 60000) * 0.48).toFixed(4)
       );
     }
 
     if (!question) {
-      return res.status(422).json({ error: "Could not transcribe any speech" });
+      return res
+        .status(422)
+        .json({ error: "Could not transcribe any speech", sttRaw, transcript });
     }
 
     const qStart = Date.now();
@@ -95,6 +112,7 @@ app.post("/api/voice/turn", async (req, res) => {
 
     res.json({
       transcript,
+      sttRaw,
       englishQuery,
       answer: answer.text,
       audio: spoken.audio,
@@ -108,6 +126,13 @@ app.post("/api/voice/turn", async (req, res) => {
     console.error("[turn] error:", err.message);
     res.status(500).json({ error: err.message || "Turn failed" });
   }
+});
+
+// Return JSON even for body-parser errors (e.g. 413 Payload Too Large),
+// otherwise the browser's res.json() fails with an empty-body error.
+app.use((err, _req, res, _next) => {
+  console.error("[server] error:", err.message);
+  res.status(err.status || 500).json({ error: err.message || "Request failed" });
 });
 
 app.listen(config.port, () => {

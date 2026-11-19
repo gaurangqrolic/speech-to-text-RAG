@@ -85,7 +85,7 @@ export async function transcribe({ base64, mimeType = "audio/webm" }) {
       },
     },
   });
-  return { text: textOf(r), usage: r.usage };
+  return { text: textOf(r), usage: r.usage, raw: r };
 }
 
 export async function answer({ question, chunks }) {

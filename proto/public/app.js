@@ -20,10 +20,20 @@ async function run(payload) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    const raw = await res.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error(
+        `HTTP ${res.status} — non-JSON response${raw ? `: ${raw.slice(0, 300)}` : " (empty body; the tunnel may have timed out)"}`
+      );
+    }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
     $("transcript").textContent = data.transcript || "—";
+    $("sttRaw").textContent =
+      data.sttRaw ?? "(text input — STT was skipped)";
     $("answer").textContent = data.answer || "—";
     $("query").textContent = `search query: ${data.englishQuery}`;
     $("timings").textContent = `timings: ${JSON.stringify(data.timings)}`;
