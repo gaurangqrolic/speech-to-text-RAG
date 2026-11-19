@@ -1,98 +1,91 @@
-# Gujarati Voice Assistant (Speech → LLM → Speech)
+# Qrolic Voice Assistant (Gujarati)
 
-A Node.js service where users **speak in Gujarati**, and an AI replies with **Gujarati text + Gujarati speech** — without training any LLM.
+A web voice assistant where users **speak in Gujarati** and an AI replies with Gujarati
+speech + live text transcripts — powered by **Sarvam Samvaad (Voice Agents)** with a
+**server-side API-key proxy**, plus a seed **knowledge base** extracted from qrolic.com.
 
 ```
-🎤 Audio (Gujarati speech)
-   │
+🎤 Browser (public/index.html + bundled Web SDK)
+   │  mic audio (16 kHz PCM) + transcripts/state callbacks
    ▼
-Sarvam STT (saaras:v4, gu-IN)         ← speech → text
-   │
+Express server (this app)
+   ├─ GET /api/config        → non-secret agent ids for the frontend
+   └─ /api/sarvam/*          → KEY PROXY: injects X-API-Key, forwards to
+   │                            apps.sarvam.ai/api/app-runtime/... signed-URL endpoint
    ▼
-RAG knowledge base (stub, later)       ← retrieves relevant context
-   │
+Samvaad session (signed WebSocket URL → direct browser ↔ Sarvam)
+   │  realtime ASR (Saaras v4) → LLM (Gujarati-aware) → TTS (Bulbul) + barge-in
    ▼
-Gemini LLM (Google AI Studio key)      ← generates Gujarati reply
-   │
-   ▼
-Sarvam TTS (bulbul:v3, gu-IN)          ← text → Gujarati speech
-   │
-   ▼
-🔊 Gujarati audio reply (mp3)
+🔊 Sub-second Gujarati voice replies, live transcript in the UI
 ```
 
-## Why this architecture works
-
-- **No training needed** — existing models handle Gujarati natively:
-  - Sarvam STT supports `gu-IN` transcription out of the box.
-  - Gemini generates fluent Gujarati text.
-  - Sarvam TTS has dedicated Gujarati voices (e.g. `bhavik_gu_conversation`, `pooja_gu_conversational`).
-- **RAG is a drop-in later** — `src/services/rag.js` is a stub; `generateReply()` already accepts context chunks and injects them into the prompt.
-- **Conversation memory** lives in `src/store/sessionStore.js` (Gemini is called with `store: false`, so history stays on your server).
+The API key **never reaches the browser**: the SDK requests a short-lived signed
+WebSocket URL through `/api/sarvam`, and the proxy validates the path (only
+`orgs/…/workspaces/…/apps/…/url`), rate-limits per IP, injects the key, and passes
+the response through. Audio then flows directly over the signed URL.
 
 ## Setup
 
+### 1. Samvaad workspace (once)
+
+1. Create a workspace at [indus.sarvam.ai → Voice Agents](https://indus.sarvam.ai)
+2. Build an agent: set instruction/persona, language **Gujarati (gu-IN)**, a Bulbul voice
+3. **Attach a Knowledge Base** — upload the 23 files from [`kb/`](kb/README.md) (Markdown supported)
+4. **Commit a version** (Deploy → Versions) — the Web SDK refuses to connect without a committed version
+5. Copy from Settings: **API key**, and from the workspace/agent URLs: **org id, workspace id, app id**
+
+### 2. This app
+
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Configure environment
-cp .env.example .env
-#    - SARVAM_API_KEY  → https://dashboard.sarvam.ai
-#    - GEMINI_API_KEY  → https://aistudio.google.com/apikey
-
-# 3. Run
-npm run dev        # or: npm start
+cp .env.example .env        # fill SAMVAAD_API_KEY + the three ids
+npm run dev                 # builds the client bundle, starts server on :3000
 ```
 
-Open http://localhost:3000 — a test page lets you record from the mic and hear the reply.
+Open http://localhost:3000 → **Start conversation** → speak Gujarati.
 
-## API
+> Mic access requires HTTPS in production (localhost is exempt).
 
-| Method | Endpoint | Body | Returns |
-|---|---|---|---|
-| POST | `/api/chat` | multipart: `audio` (file), `session_id?`, `language_code?` | `transcript`, `reply`, `audio` (base64 mp3), `timings` |
-| POST | `/api/stt` | multipart: `audio` (file) | `transcript`, `language_code` |
-| POST | `/api/tts` | JSON: `text`, `language_code?` | `audio` (base64 mp3) |
-| POST | `/api/text` | JSON: `text`, `session_id?`, `speak?` | `reply`, `audio?` |
-| GET | `/api/health` | — | status + active config |
+### Test questions (Gujarati)
 
-Example (text-only, skips the mic):
-
-```bash
-curl -X POST http://localhost:3000/api/text \
-  -H 'Content-Type: application/json' \
-  -d '{"text": "તમારું નામ શું છે?"}'
-```
+See [`kb/README.md`](kb/README.md) — e.g. *તમારો સંપર્ક નંબર શું છે?* should return the
+phone/email/address from the KB's contact page.
 
 ## Project structure
 
 ```
 src/
-├── server.js               # Express entry
-├── config.js               # env-driven config + validation
-├── middleware/upload.js    # multer (memory storage, 25 MB)
-├── routes/
-│   ├── chat.js             # full pipeline: audio → reply → audio
-│   ├── speech.js           # standalone /api/stt and /api/tts
-│   └── text.js             # text-only chat
-├── services/
-│   ├── speechToText.js     # Sarvam STT client
-│   ├── llm.js              # Gemini client + Gujarati system prompt
-│   ├── textToSpeech.js     # Sarvam TTS client (chunks long text)
-│   └── rag.js              # knowledge-base stub ← implement later
-└── store/sessionStore.js   # in-memory multi-turn history
-public/index.html           # mic test page
+├── server.js                 # Express entry: static, /api/config, proxy mount
+├── config.js                 # env validation (fails fast without SAMVAAD_API_KEY)
+├── routes/sarvamProxy.js     # the key proxy (path allowlist + rate limit)
+└── client/main.js            # Web SDK usage → bundled to public/app.js
+public/
+├── index.html                # voice UI: transcripts, state pill, level meter
+└── app.js                    # build artifact (npm run build)
+kb/                           # 23 qrolic.com docs for the Samvaad KB + tools/
 ```
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | build client + run server with `--watch` |
+| `npm start` | build client + run server |
+| `npm run build` | bundle `src/client/main.js` → `public/app.js` (esbuild) |
+| `npm run watch:client` | rebuild bundle on change (use alongside `dev`) |
+
+## Environment (`.env`)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `SAMVAAD_API_KEY` | ✅ | Voice Agents API key — server-side only |
+| `SAMVAAD_ORG_ID` / `SAMVAAD_WORKSPACE_ID` / `SAMVAAD_APP_ID` | ✅ | non-secret, served to browser via `/api/config` |
+| `PORT` | – | default 3000 |
+| `SAMVAAD_RUNTIME_BASE_URL` | – | default `https://apps.sarvam.ai/api/app-runtime/` |
 
 ## Roadmap
 
-1. **RAG knowledge base** — implement `src/services/rag.js`:
-   - Chunk documents → embed with a Gujarati-capable multilingual model (Gemini `gemini-embedding-001`, `text-embedding-004`, or multilingual-e5) → store in a vector DB (Chroma/Qdrant/pgvector) → return top-k chunks.
-2. **Streaming latency** — stream Gemini output and synthesize TTS per sentence to cut first-audio latency from ~4-6s to ~1-2s.
-3. **Continuous conversation** — add VAD (e.g. Silero) so users speak without pressing a button; or evaluate Gemini Live API for end-to-end streaming audio.
-4. **Persistence** — move `sessionStore` to Redis; add auth/rate limits.
-
-## Configuration reference
-
-See `.env.example` for all options: model names, TTS speaker/voice, language code, port.
+1. **Test KB retrieval** with the Gujarati questions in `kb/README.md` (simulated calls: ₹2/run)
+2. **Custom KB endpoint** — if you outgrow the built-in KB, add `/api/kb/search` and point a Samvaad API tool at it (patterns from `qrolic-indexer` apply: SQLite FTS5 + multilingual embeddings + hybrid search)
+3. **on_start hook** — preload caller context before the first word
+4. Mobile — the same agent runs on Samvaad's React Native / Flutter SDKs

@@ -1,20 +1,29 @@
 {
-  "name": "gujarati-voice-assistant",
-  "version": "0.1.0",
-  "description": "Gujarati voice assistant: Sarvam STT + Gemini LLM + Sarvam TTS, RAG-ready",
+  "name": "qrolic-voice-assistant",
+  "version": "0.2.0",
+  "description": "Gujarati voice assistant: Samvaad Web SDK UI + server-side key proxy",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "build": "esbuild src/client/main.js --bundle --format=esm --outfile=public/app.js --sourcemap",
+    "watch:client": "esbuild src/client/main.js --bundle --format=esm --outfile=public/app.js --sourcemap --watch",
+    "prestart": "npm run build",
     "start": "node src/server.js",
+    "predev": "npm run build",
     "dev": "node --watch src/server.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "@google/genai": "3.6.0",
     "dotenv": "18.0.10",
-    "express": "5.3.0",
-    "multer": "2.5.0"
+    "express": "5.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "sarvam-conv-ai-sdk": "0.0.42"
+  },
+  "allowScripts": {
+    "node": false
   }
 }

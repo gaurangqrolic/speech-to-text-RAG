@@ -1,10 +1,9 @@
 import "dotenv/config";
 
-const missing = ["SARVAM_API_KEY", "GEMINI_API_KEY"].filter((key) => !process.env[key]);
-if (missing.length > 0) {
+if (!process.env.SAMVAAD_API_KEY) {
   throw new Error(
-    `Missing required environment variables: ${missing.join(", ")}\n` +
-      "Copy .env.example to .env and fill in your API keys."
+    "Missing required environment variable: SAMVAAD_API_KEY\n" +
+      "Copy .env.example to .env and add your Sarvam Voice Agents API key."
   );
 }
 
@@ -12,27 +11,23 @@ export const config = {
   port: Number(process.env.PORT) || 3000,
 
   sarvam: {
-    apiKey: process.env.SARVAM_API_KEY,
-    sttUrl: "https://api.sarvam.ai/speech-to-text",
-    ttsUrl: "https://api.sarvam.ai/text-to-speech",
-    sttModel: process.env.SARVAM_STT_MODEL || "saaras:v4",
-    ttsModel: process.env.SARVAM_TTS_MODEL || "bulbul:v3",
-    ttsSpeaker: process.env.SARVAM_TTS_SPEAKER || "shubh",
-    // bulbul:v3 and bulbul:v4-flash accept at most 2500 characters per request
-    ttsMaxChars: 2500,
+    // Voice Agents API key — stays on the server, injected into proxied requests.
+    apiKey: process.env.SAMVAAD_API_KEY,
+    runtimeBaseUrl:
+      process.env.SAMVAAD_RUNTIME_BASE_URL || "https://apps.sarvam.ai/api/app-runtime/",
   },
 
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+  agent: {
+    // Non-secret identifiers, exposed to the browser via GET /api/config.
+    orgId: process.env.SAMVAAD_ORG_ID || "",
+    workspaceId: process.env.SAMVAAD_WORKSPACE_ID || "",
+    appId: process.env.SAMVAAD_APP_ID || "",
   },
 
-  language: {
-    // BCP-47 code used for both STT input and TTS output
-    code: process.env.LANGUAGE_CODE || "gu-IN",
-  },
-
-  assistant: {
-    name: process.env.ASSISTANT_NAME || "Sahayak",
-  },
+  // Simple in-memory limiter for the key proxy (requests per minute per IP).
+  proxyRateLimit: 60,
 };
+
+export function agentConfigured() {
+  return Boolean(config.agent.orgId && config.agent.workspaceId && config.agent.appId);
+}
