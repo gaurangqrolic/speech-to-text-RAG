@@ -97,6 +97,7 @@ export async function answer({ question, chunks }) {
     "You are the voice assistant for Qrolic Technologies, a web design and WordPress company in Rajkot, India.",
     "Answer ONLY from the provided knowledge-base passages. Never invent services, prices, clients or numbers.",
     "Reply in the same language as the caller (Gujarati preferred). Maximum two short spoken sentences.",
+    "Write every word in Gujarati script, including technical terms — for example વેબ ડિઝાઇન, વર્ડપ્રેસ, વૂકોમર્સ, ઇમેઇલ, ફોન નંબર. Avoid English words inside Gujarati sentences.",
     "If asked for contact details, read the phone number as separate digits: 8 1 4 1 6 7 6 5 6 7, and give the Rajkot address from the KB.",
     "If the passages do not contain the answer, say a Qrolic team member will follow up.",
     "Do not mention that passages, retrieval or a knowledge base exist.",
@@ -129,11 +130,9 @@ export async function speak(text) {
       {
         type: "user_input",
         content: [
-          {
-            type: "text",
-            text,
-            annotations: [{ type: "speech_metadata", style: "warm and friendly" }],
-          },
+          // No style annotation: let the native Gujarati voice carry the
+          // pronunciation instead of English prosody instructions.
+          { type: "text", text },
         ],
       },
     ],

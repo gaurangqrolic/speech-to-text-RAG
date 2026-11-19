@@ -11,7 +11,8 @@ Browser (mic or text)
     1. STT   gemini-3.5-transcribe     (Gujarati hint + custom vocabulary)
     2. RAG   local SQLite FTS5 over kb/*.md (query translated to English via Flash-Lite)
     3. LLM   gemini-3.5-flash-lite     (grounded, ≤2 spoken sentences)
-    4. TTS   gemini-3.8-flash-lite-tts (Gujarati supported, v1beta, WAV out)
+    4. TTS   gemini-3.8-flash-lite-tts with a NATIVE Gujarati voice
+            (gu-in-techagent-1 / gu-in-concierge-1 from the Extended Voice Library)
   ← { transcript, answer, audio, chunks, timings, cost }
 ```
 
