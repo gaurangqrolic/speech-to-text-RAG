@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ગુજરાતી Voice Assistant</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, "Noto Sans Gujarati", sans-serif;
+      max-width: 640px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.4rem; }
+    .card {
+      border: 1px solid #8884;
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    #recordBtn {
+      font-size: 1.1rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+    #recordBtn.recording { background: #dc2626; }
+    #recordBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .label { font-size: 0.8rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em; }
+    .transcript { color: #888; font-style: italic; }
+    .reply { font-size: 1.15rem; }
+    .timings { font-size: 0.8rem; opacity: 0.6; }
+    #status { font-size: 0.9rem; min-height: 1.4em; }
+    button.small {
+      padding: 0.3rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #8886;
+      background: transparent;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>ગુજરાતી Voice Assistant</h1>
+  <p>Speak in Gujarati — get a text + speech reply from the AI.</p>
+
+  <div class="card">
+    <button id="recordBtn">🎙️ બોલવા માટે દબાવો (Hold to speak)</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">You said (transcript)</div>
+    <div class="transcript" id="transcript">—</div>
+  </div>
+
+  <div class="card">
+    <div class="label">AI reply</div>
+    <div class="reply" id="reply">—</div>
+    <audio id="player" controls style="width: 100%; margin-top: 0.5rem;"></audio>
+    <div class="timings" id="timings"></div>
+  </div>
+
+  <button class="small" id="resetBtn">Reset conversation</button>
+
+  <script>
+    const recordBtn = document.getElementById("recordBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const statusEl = document.getElementById("status");
+    const transcriptEl = document.getElementById("transcript");
+    const replyEl = document.getElementById("reply");
+    const player = document.getElementById("player");
+    const timingsEl = document.getElementById("timings");
+
+    let mediaRecorder = null;
+    let chunks = [];
+    let sessionId = localStorage.getItem("session_id") || crypto.randomUUID();
+    localStorage.setItem("session_id", sessionId);
+
+    recordBtn.addEventListener("click", async () => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        chunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.addEventListener("dataavailable", (e) => chunks.push(e.data));
+        mediaRecorder.addEventListener("stop", async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          recordBtn.classList.remove("recording");
+          recordBtn.textContent = "🎙️ બોલવા માટે દબાવો (Hold to speak)";
+          await sendAudio(new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" }));
+        });
+        mediaRecorder.start();
+        recordBtn.classList.add("recording");
+        recordBtn.textContent = "⏹️ Stop";
+        statusEl.textContent = "Recording... speak now.";
+      } catch (err) {
+        statusEl.textContent = "Microphone error: " + err.message;
+      }
+    });
+
+    async function sendAudio(blob) {
+      statusEl.textContent = "Processing...";
+      recordBtn.disabled = true;
+      const form = new FormData();
+      form.append("audio", blob, "recording.webm");
+      form.append("session_id", sessionId);
+      try {
+        const res = await fetch("/api/chat", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        transcriptEl.textContent = data.transcript;
+        replyEl.textContent = data.reply;
+        player.src = "data:audio/mpeg;base64," + data.audio.data;
+        player.play().catch(() => {});
+        const t = data.timings;
+        timingsEl.textContent = `STT ${t.stt_ms}ms · LLM ${t.llm_ms}ms · TTS ${t.tts_ms}ms · total ${t.total_ms}ms`;
+        statusEl.textContent = "";
+      } catch (err) {
+        statusEl.textContent = "Error: " + err.message;
+      } finally {
+        recordBtn.disabled = false;
+      }
+    }
+
+    resetBtn.addEventListener("click", () => {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem("session_id", sessionId);
+      transcriptEl.textContent = "—";
+      replyEl.textContent = "—";
+      player.removeAttribute("src");
+      timingsEl.textContent = "";
+      statusEl.textContent = "New conversation started.";
+    });
+  </script>
+</body>
+</html>
