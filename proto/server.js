@@ -1,0 +1,108 @@
+import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { config } from "./config.js";
+import * as gemini from "./gemini.js";
+import * as rag from "./rag.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+app.disable("x-powered-by");
+app.use(express.json({ limit: "25mb" }));
+app.use(express.static(path.join(__dirname, "public")));
+
+const init = rag.buildIndex();
+console.log(`[rag] indexed ${init.files} files / ${init.chunks} chunks`);
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true, ...rag.stats(), models: config.models });
+});
+
+app.get("/api/rag/search", (req, res) => {
+  const q = String(req.query.q || "").slice(0, 300);
+  res.json({ query: q, results: rag.search(q) });
+});
+
+/**
+ * One turn of the voice chatbot.
+ * Body: { question } for text tests, or { audio, mimeType, durationMs } for voice.
+ */
+app.post("/api/voice/turn", async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const timings = {};
+    let question = String(req.body.question || "").trim();
+    let transcript = question;
+    const cost = {};
+
+    if (!question) {
+      const audio = String(req.body.audio || "");
+      if (!audio) {
+        return res.status(400).json({ error: "Provide question or audio" });
+      }
+      const sttStart = Date.now();
+      const stt = await gemini.transcribe({
+        base64: audio,
+        mimeType: String(req.body.mimeType || "audio/webm"),
+      });
+      transcript = stt.text;
+      question = transcript;
+      timings.sttMs = Date.now() - sttStart;
+      cost.sttInr = Number(
+        ((Number(req.body.durationMs || 0) / 60000) * 0.48).toFixed(4)
+      );
+    }
+
+    if (!question) {
+      return res.status(422).json({ error: "Could not transcribe any speech" });
+    }
+
+    const qStart = Date.now();
+    const englishQuery = await gemini.searchQuery(question);
+    timings.queryMs = Date.now() - qStart;
+
+    const chunks = rag.search(englishQuery, 5);
+
+    const llmStart = Date.now();
+    const answer = await gemini.answer({ question, chunks });
+    timings.llmMs = Date.now() - llmStart;
+    const u = answer.usage || {};
+    cost.llmInr = Number(
+      (
+        ((u.total_input_tokens || 0) * 0.3 + (u.total_output_tokens || 0) * 2.5) /
+        1_000_000 *
+        config.inrPerUsd
+      ).toFixed(4)
+    );
+
+    const ttsStart = Date.now();
+    const spoken = await gemini.speak(answer.text);
+    timings.ttsMs = Date.now() - ttsStart;
+    const seconds = gemini.audioSeconds(spoken.audio);
+    cost.ttsInr = Number(((seconds / 10) * 0.0015 * config.inrPerUsd).toFixed(4));
+
+    timings.totalMs = Date.now() - t0;
+    cost.totalInr = Number(
+      Object.values(cost).reduce((a, b) => a + Number(b || 0), 0).toFixed(4)
+    );
+
+    res.json({
+      transcript,
+      englishQuery,
+      answer: answer.text,
+      audio: spoken.audio,
+      audioSeconds: Number(seconds.toFixed(2)),
+      chunks,
+      timings,
+      cost,
+      usage: { stt: undefined, llm: u, tts: spoken.usage },
+    });
+  } catch (err) {
+    console.error("[turn] error:", err.message);
+    res.status(500).json({ error: err.message || "Turn failed" });
+  }
+});
+
+app.listen(config.port, () => {
+  console.log(`Gemini RAG voice-chat prototype at http://localhost:${config.port}`);
+});

@@ -10,7 +10,8 @@
     "prestart": "npm run build",
     "start": "node src/server.js",
     "predev": "npm run build",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "proto": "node proto/server.js"
   },
   "engines": {
     "node": ">=18"

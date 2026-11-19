@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini RAG Voice Chat — Prototype</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, "Noto Sans Gujarati", sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { font-size: 1.25rem; margin-bottom: .2rem; }
+    .sub { font-size: .85rem; opacity: .65; margin-bottom: 1rem; }
+    .card { border: 1px solid #8884; border-radius: 12px; padding: 1rem; margin: 1rem 0; }
+    button { font-size: 1rem; padding: .6rem 1.2rem; border-radius: 999px; border: 1px solid #8886; background: transparent; cursor: pointer; color: inherit; }
+    #recBtn { background: #2563eb; border-color: #2563eb; color: #fff; }
+    #recBtn.recording { background: #dc2626; border-color: #dc2626; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    input[type=text] { flex: 1; padding: .6rem .8rem; border: 1px solid #8886; border-radius: 8px; font-size: 1rem; }
+    .row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+    label { font-size: .85rem; opacity: .8; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: .85rem; background: #8881; padding: .7rem; border-radius: 8px; max-height: 260px; overflow-y: auto; }
+    .kv { font-size: .85rem; font-family: ui-monospace, monospace; }
+    .pill { display: inline-block; font-size: .72rem; border: 1px solid #8886; border-radius: 999px; padding: .15rem .6rem; margin-right: .4rem; }
+    .error { color: #dc2626; font-size: .9rem; }
+    audio { width: 100%; margin-top: .5rem; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Gemini RAG Voice Chat <span class="pill">prototype</span></h1>
+  <div class="sub">STT: gemini-3.5-transcribe · RAG: local SQLite FTS5 over kb/*.md · LLM: gemini-3.5-flash-lite · TTS: gemini-3.8-flash-lite-tts</div>
+
+  <div class="row">
+    <button id="recBtn">🎙 Hold to speak</button>
+    <span id="status">idle</span>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input type="text" id="question" placeholder="Or type a Gujarati question (text-only test)…" />
+      <button id="askBtn">Ask</button>
+    </div>
+  </div>
+
+  <div id="error" class="error hidden"></div>
+
+  <div class="card">
+    <div><span class="pill">caller</span><span id="transcript">—</span></div>
+    <div style="margin-top:.5rem"><span class="pill">agent</span><span id="answer">—</span></div>
+    <audio id="player" controls class="hidden"></audio>
+  </div>
+
+  <div class="card">
+    <div class="kv" id="timings">timings: —</div>
+    <div class="kv" id="cost" style="margin-top:.4rem">cost: —</div>
+    <div class="kv" id="query" style="margin-top:.4rem">search query: —</div>
+  </div>
+
+  <div class="card">
+    <strong>Retrieved KB chunks</strong>
+    <pre id="chunks">—</pre>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
