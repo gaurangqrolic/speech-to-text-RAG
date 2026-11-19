@@ -1,8 +1,17 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+// Prefer proto/.env, then fall back to the project-root .env.
+// dotenv does not override already-set keys, so a value in proto/.env wins.
+dotenv.config({ path: path.join(here, ".env") });
+dotenv.config({ path: path.join(here, "..", ".env") });
 
 if (!process.env.GEMINI_API_KEY) {
   throw new Error(
-    "Missing GEMINI_API_KEY. Copy proto/.env.example to .env and add a Google AI Studio key."
+    "Missing GEMINI_API_KEY. Add it to proto/.env (or the project-root .env) — see proto/.env.example."
   );
 }
 
