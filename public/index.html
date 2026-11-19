@@ -70,7 +70,8 @@
     #startBtn:disabled { opacity: 0.5; cursor: not-allowed; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
     .level-track { height: 6px; border-radius: 999px; background: #8882; margin-top: 0.75rem; overflow: hidden; }
-    #level { height: 100%; width: 0%; background: linear-gradient(90deg, #2563eb, #16a34a); transition: width 80ms linear; }
+    #level { height: 100%; width: 0%; background: #2563eb; transition: width 80ms linear; }
+    #level[data-direction="output"] { background: #16a34a; }
     .meta { font-size: 0.8rem; opacity: 0.6; margin-top: 0.5rem; }
     #error { color: #dc2626; font-size: 0.9rem; margin-top: 0.5rem; }
     .hint { font-size: 0.85rem; opacity: 0.65; }
@@ -98,7 +99,9 @@
   <div class="controls">
     <button id="startBtn">🎙 Start conversation</button>
     <button id="muteBtn" disabled>Mute</button>
-    <span class="hint">Speak in Gujarati — the agent replies in Gujarati.</span>
+    <label class="hint" style="display:flex;align-items:center;gap:.35rem;cursor:pointer">
+      <input type="checkbox" id="oneShot" checked /> One question at a time (auto-end after answer)
+    </label>
   </div>
 
   <p class="hint">

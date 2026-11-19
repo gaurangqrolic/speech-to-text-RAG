@@ -2,6 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, agentConfigured } from "./config.js";
+import { greetingFromEnv } from "./greeting.js";
 import sarvamProxy from "./routes/sarvamProxy.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,9 @@ app.get("/api/config", (_req, res) => {
     org_id: config.agent.orgId,
     workspace_id: config.agent.workspaceId,
     app_id: config.agent.appId,
+    app_version: config.agent.version,
+    // Computed per request so the time-of-day greeting stays fresh.
+    greeting: greetingFromEnv(config.greeting),
     configured: agentConfigured(),
   });
 });

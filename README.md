@@ -80,6 +80,8 @@ kb/                           # 23 qrolic.com docs for the Samvaad KB + tools/
 |---|---|---|
 | `SAMVAAD_API_KEY` | ✅ | Voice Agents API key — server-side only |
 | `SAMVAAD_ORG_ID` / `SAMVAAD_WORKSPACE_ID` / `SAMVAAD_APP_ID` | ✅ | non-secret, served to browser via `/api/config` |
+| `SAMVAAD_APP_VERSION` | – | Pin a committed version (e.g. `4`); blank = latest committed |
+| `SAMVAAD_GREETING` | – | blank = time-of-day Gujarati greeting · text = fixed greeting · `OFF` = no greeting (silent start) |
 | `PORT` | – | default 3000 |
 | `SAMVAAD_RUNTIME_BASE_URL` | – | default `https://apps.sarvam.ai/api/app-runtime/` |
 

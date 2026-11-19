@@ -22,11 +22,22 @@ export const config = {
     orgId: process.env.SAMVAAD_ORG_ID || "",
     workspaceId: process.env.SAMVAAD_WORKSPACE_ID || "",
     appId: process.env.SAMVAAD_APP_ID || "",
+    // Optional: pin a committed agent version. Blank = latest committed version.
+    version: process.env.SAMVAAD_APP_VERSION?.trim()
+      ? Number(process.env.SAMVAAD_APP_VERSION.trim())
+      : null,
   },
+
+  // Optional greeting override. Blank = time-of-day greeting (Gujarati, IST).
+  greeting: process.env.SAMVAAD_GREETING?.trim() || null,
 
   // Simple in-memory limiter for the key proxy (requests per minute per IP).
   proxyRateLimit: 60,
 };
+
+if (config.agent.version !== null && (!Number.isInteger(config.agent.version) || config.agent.version < 1)) {
+  throw new Error("SAMVAAD_APP_VERSION must be a positive integer (e.g. 4) or blank");
+}
 
 export function agentConfigured() {
   return Boolean(config.agent.orgId && config.agent.workspaceId && config.agent.appId);
