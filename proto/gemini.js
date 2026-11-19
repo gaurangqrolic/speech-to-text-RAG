@@ -96,10 +96,11 @@ export async function answer({ question, chunks }) {
   const system = [
     "You are the voice assistant for Qrolic Technologies, a web design and WordPress company in Rajkot, India.",
     "Answer ONLY from the provided knowledge-base passages. Never invent services, prices, clients or numbers.",
-    "Reply in the same language as the caller (Gujarati preferred). Maximum two short spoken sentences.",
-    "Write every word in Gujarati script, including technical terms — for example વેબ ડિઝાઇન, વર્ડપ્રેસ, વૂકોમર્સ, ઇમેઇલ, ફોન નંબર. Avoid English words inside Gujarati sentences.",
-    "If asked for contact details, read the phone number as separate digits: 8 1 4 1 6 7 6 5 6 7, and give the Rajkot address from the KB.",
-    "If the passages do not contain the answer, say a Qrolic team member will follow up.",
+    "Reply in the caller's language (Gujarati preferred), in at most two short spoken sentences. Answer exactly what was asked and stop — never add filler or generic closings like 'contact the team for more information'.",
+    "Use Gujarati script for words, including technical terms: વેબ ડિઝાઇન, વર્ડપ્રેસ, વૂકોમર્સ, ઇમેઇલ.",
+    "PHONE NUMBERS: always write ASCII digits, with the country code and spaces between digit groups — the KB number +91 81416 76567 must be spoken as '91 8 1 4 1 6 7 6 5 6 7'. Never use Gujarati digits and never concatenate the digits into one long number.",
+    "Scope rule: if asked ONLY for the phone number, reply with ONLY the phone number and nothing else. Never volunteer the address, email, or a closing line. Mention the address only if the caller explicitly asks for address/location; mention email only if the caller asks for email or full contact details.",
+    "If the passages do not contain the answer, say briefly that a Qrolic team member will follow up.",
     "Do not mention that passages, retrieval or a knowledge base exist.",
   ].join(" ");
 
@@ -107,18 +108,42 @@ export async function answer({ question, chunks }) {
     model: config.models.llm,
     system_instruction: system,
     input: `Knowledge base passages:\n${context}\n\nCaller question: ${question}`,
-    generation_config: { max_output_tokens: 300 },
+    generation_config: { max_output_tokens: 300, thinking_level: "minimal" },
   });
   return { text: textOf(r), usage: r.usage };
 }
 
+// Deterministic Gujarati → English keyword map for the KB's topic vocabulary.
+// Avoids a slow LLM round-trip for the common questions and keeps the query specific.
+const KEYWORDS = [
+  ["સંપર્ક", "contact"], ["નંબર", "phone number"], ["ફોન", "phone"],
+  ["ઇમેઇલ", "email"], ["email", "email"], ["સરનામું", "address"],
+  ["ઓફિસ", "office location"], ["ક્યાં", "where location"], ["શું", "what"],
+  ["સેવા", "services"], ["સેવાઓ", "services"], ["વેબ", "web design"],
+  ["વેબસાઇટ", "website"], ["વર્ડપ્રેસ", "wordpress"], ["wordpress", "wordpress"],
+  ["ડિઝાઇન", "design"], ["ડેવલપ", "development"], ["માઇગ્રેશન", "migration"],
+  ["માઈગ્રેશન", "migration"], ["ecommerce", "ecommerce"], ["ઇકોમર્સ", "ecommerce"],
+  ["વૂકોમર્સ", "woocommerce"], ["હેલ્થ", "healthcare"], ["ફિનાન્સ", "finance banking"],
+  ["બેંક", "banking"], ["એજ્યુકેશન", "education lms"], ["શિક્ષણ", "education lms"],
+  ["ધીમી", "slow performance optimization"], ["ઝડપ", "speed performance"],
+  ["કેસ", "case study"], ["સ્ટડી", "case study"], ["માલવેર", "malware cleanup"],
+  ["હેક", "malware cleanup"], [" maintenance", "maintenance"], ["મેન્ટેનન્સ", "maintenance"],
+  ["ભાવ", "pricing cost"], ["કિંમત", "pricing cost"], ["કંપની", "company about"],
+];
+
 export async function searchQuery(question) {
+  const lower = question.toLowerCase();
+  const hits = KEYWORDS.filter(([gu]) => lower.includes(gu)).map(([, en]) => en);
+  if (hits.length >= 2) {
+    return ["Qrolic", ...new Set(hits)].join(" ");
+  }
+  // Fallback for unusual questions: let Flash-Lite translate.
   const r = await interaction({
     model: config.models.llm,
     system_instruction:
-      "Translate this caller question into a short English web-search style query for a company knowledge base about web design, WordPress, industries and contact details. Output only the query, no explanation.",
+      "Translate the caller question into 6-12 concrete English keywords for searching a company knowledge base about web design, WordPress, services, industries and contact details. Always include the company name Qrolic. Output only the keywords, no explanation.",
     input: question,
-    generation_config: { max_output_tokens: 80 },
+    generation_config: { max_output_tokens: 80, thinking_level: "minimal" },
   });
   return textOf(r) || question;
 }

@@ -74,17 +74,19 @@ function ftsQuery(q) {
   return terms.slice(0, 12).join(" OR ");
 }
 
-export function search(query, topK = 5) {
+export function search(query, topK = 5, fileFilter = null) {
   if (!db) buildIndex();
   const fts = ftsQuery(query);
   if (!fts) return [];
-  const rows = db
-    .prepare(
-      `SELECT c.file, c.title, c.text, bm25(chunks_fts) AS score
-       FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
-       WHERE chunks_fts MATCH ? ORDER BY score LIMIT ?`
-    )
-    .all(fts, topK);
+  const where = fileFilter
+    ? "WHERE chunks_fts MATCH ? AND c.file = ?"
+    : "WHERE chunks_fts MATCH ?";
+  const stmt = db.prepare(
+    `SELECT c.file, c.title, c.text, bm25(chunks_fts, 10.0, 3.0, 1.0) AS score
+     FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
+     ${where} ORDER BY score LIMIT ?`
+  );
+  const rows = fileFilter ? stmt.all(fts, fileFilter, topK) : stmt.all(fts, topK);
   return rows.map((r) => ({
     file: r.file,
     title: r.title,

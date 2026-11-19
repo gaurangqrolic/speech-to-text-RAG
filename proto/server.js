@@ -61,7 +61,14 @@ app.post("/api/voice/turn", async (req, res) => {
     const englishQuery = await gemini.searchQuery(question);
     timings.queryMs = Date.now() - qStart;
 
-    const chunks = rag.search(englishQuery, 5);
+    // Contact questions have a canonical document; FTS over the whole corpus
+    // gets distracted by CTA sections on every service page.
+    const contactIntent = /\b(contact|phone|email|address|location|office)\b/i.test(
+      englishQuery
+    );
+    const chunks = contactIntent
+      ? rag.search(englishQuery, 5, "page-contact-us.md")
+      : rag.search(englishQuery, 5);
 
     const llmStart = Date.now();
     const answer = await gemini.answer({ question, chunks });
