@@ -7,7 +7,50 @@ let busy = false;
 function setError(msg) {
   $("error").textContent = msg || "";
   $("error").classList.toggle("hidden", !msg);
+  $("copyErrBtn").classList.toggle("hidden", !msg);
 }
+
+async function copyText(text, btn, label = "📋 Copied") {
+  if (!text || text === "—") return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // Fallback for browsers without the async clipboard API.
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    const old = btn.textContent;
+    btn.textContent = label;
+    setTimeout(() => (btn.textContent = old), 1500);
+  } catch (e) {
+    setError(`Could not copy to clipboard: ${e.message}`);
+  }
+}
+
+$("copyErrBtn").addEventListener("click", () =>
+  copyText($("error").textContent, $("copyErrBtn"), "✅ Error copied")
+);
+
+$("copyDiagBtn").addEventListener("click", () => {
+  const diag = [
+    `caller: ${$("transcript").textContent}`,
+    `agent: ${$("answer").textContent}`,
+    $("query").textContent,
+    $("timings").textContent,
+    $("cost").textContent,
+    `--- STT RAW ---\n${$("sttRaw").textContent}`,
+    `--- CHUNKS ---\n${$("chunks").textContent}`,
+    `--- ERROR ---\n${$("error").textContent || "(none)"}`,
+  ].join("\n\n");
+  copyText(diag, $("copyDiagBtn"), "✅ Diagnostics copied");
+});
 
 async function run(payload) {
   if (busy) return;

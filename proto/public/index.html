@@ -21,8 +21,9 @@
     .kv { font-size: .85rem; font-family: ui-monospace, monospace; }
     .pill { display: inline-block; font-size: .72rem; border: 1px solid #8886; border-radius: 999px; padding: .15rem .6rem; margin-right: .4rem; }
     .error { color: #dc2626; font-size: .9rem; }
-    audio { width: 100%; margin-top: .5rem; }
+    .copy-btn { font-size: .8rem; padding: .4rem .8rem; margin-top: .5rem; }
     .hidden { display: none; }
+    audio { width: 100%; margin-top: .5rem; }
   </style>
 </head>
 <body>
@@ -42,6 +43,7 @@
   </div>
 
   <div id="error" class="error hidden"></div>
+  <button id="copyErrBtn" class="copy-btn hidden">📋 Copy error</button>
 
   <div class="card">
     <div><span class="pill">caller</span><span id="transcript">—</span></div>
@@ -53,6 +55,7 @@
     <div class="kv" id="timings">timings: —</div>
     <div class="kv" id="cost" style="margin-top:.4rem">cost: —</div>
     <div class="kv" id="query" style="margin-top:.4rem">search query: —</div>
+    <button id="copyDiagBtn" class="copy-btn">📋 Copy all diagnostics</button>
   </div>
 
   <div class="card">
