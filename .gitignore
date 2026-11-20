@@ -6,3 +6,9 @@ uploads/
 public/app.js
 public/app.js.map
 proto/data/
+local_models/.venv/
+local_models/results/
+local_models/models/
+
+__pycache__/
+*.pyc

@@ -1,0 +1,85 @@
+{
+  "tts": {
+    "indic_tiny": {
+      "repo": "sulabhkatiyar/indic-tiny-tts-gujarati",
+      "runner": "indic_tiny",
+      "voices": ["female", "male"],
+      "license": "CC-BY-4.0 / MIT code",
+      "notes": "Gujarati script only; write phone numbers in words"
+    },
+    "mithi": {
+      "repo": "Oomni/mithi-v2-flash",
+      "runner": "mithi",
+      "voices": ["vaidehi", "ahana", "charvi", "satvik"],
+      "license": "Apache-2.0",
+      "notes": "lang code gu; 10 voices"
+    },
+    "pocket": {
+      "repo": "meeeetxd/pocket-tts-gujarati",
+      "runner": "pocket",
+      "voices": ["reference wav path"],
+      "license": "CC-BY-4.0",
+      "notes": "voice cloning; needs a short reference WAV"
+    },
+    "piper": {
+      "repo": "Arjun4707/piper-gujarati-male",
+      "runner": "piper",
+      "voices": ["male"],
+      "license": "Apache-2.0",
+      "notes": "gated model; accept HF conditions"
+    }
+  },
+  "stt": {
+    "whisper_base": {
+      "repo": "vasista22/whisper-gujarati-base",
+      "runner": "faster_whisper",
+      "license": "Apache-2.0",
+      "wer_fleurs": 18.98
+    },
+    "whisper_small": {
+      "repo": "vasista22/whisper-gujarati-small",
+      "runner": "faster_whisper",
+      "license": "Apache-2.0",
+      "wer_fleurs": 14.73
+    },
+    "whisper_medium_ct2": {
+      "repo": "managergil/ct2-whisper-gujarati-medium",
+      "runner": "faster_whisper",
+      "license": "Apache-2.0",
+      "wer_fleurs": 12.33
+    },
+    "indicconformer": {
+      "repo": "Docglasses-AI/indic-conformer-600m-sherpa-onnx-int8",
+      "file": "indicconformer-gu.int8.onnx",
+      "tokens": "indicconformer-tokens.txt",
+      "runner": "sherpa_onnx",
+      "license": "MIT"
+    }
+  },
+  "llm": {
+    "qwen_0_5b": {
+      "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+      "file": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      "runner": "llama_cpp",
+      "license": "Apache-2.0"
+    },
+    "qwen_1_5b": {
+      "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+      "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "runner": "llama_cpp",
+      "license": "Apache-2.0"
+    },
+    "gemma_3_1b": {
+      "repo": "google/gemma-3-1b-it-GGUF",
+      "file": "gemma-3-1b-it-q4_k_m.gguf",
+      "runner": "llama_cpp",
+      "license": "Gemma terms"
+    },
+    "kemcho_gemma": {
+      "repo": "shalinm/Kemcho-Gemma-3-1B-IT",
+      "runner": "transformers",
+      "license": "Gemma terms",
+      "notes": "Gujarati instruction fine-tune; bf16 ~4 GB"
+    }
+  }
+}

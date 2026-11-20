@@ -1,0 +1,18 @@
+{
+  "tts": [
+    {"id": "greet", "text": "નમસ્તે, તમે ક્રોલિક ટેકનોલોજીસ સાથે વાત કરી રહ્યા છો. આજે હું તમારી શું મદદ કરી શકું?"},
+    {"id": "services", "text": "અમે વેબ ડિઝાઇન, વેબ વિકાસ, વર્ડપ્રેસ મેન્ટેનન્સ, માઇગ્રેશન અને કસ્ટમ પ્લગઇન વિકાસ જેવી સેવાઓ આપીએ છીએ."},
+    {"id": "phone_digits", "text": "અમારો સંપર્ક નંબર 9 1, 8 1 4 1 6, 7 6 5 6 7 છે. ઇમેઇલ info@qrolic.com પર કરશો."},
+    {"id": "mixed", "text": "અમે WordPress, WooCommerce અને SEO સેવાઓ આપીએ છીએ. Shopify થી WordPress માઇગ્રેશન પણ કરીએ છીએ."},
+    {"id": "case_study", "text": "અમે વેબસાઇટની સ્પીડ ૩૦ સેકન્ડથી ઘટાડીને ૪ સેકન્ડ કરી છે અને ફર્સ્ટ પાસ એરપોર્ટ માટે બુકિંગ પ્લેટફોર્મ બનાવ્યું છે."}
+  ],
+  "stt": [
+    {"id": "sample1", "audio_path": ""},
+    {"id": "sample2", "audio_path": ""}
+  ],
+  "llm": [
+    {"id": "contact", "system": "તમે Qrolic Tecnologies ના પ્રતિનિધિ છો. ટૂંકમાં Gujarati માં જવાબ આપો.", "prompt": "તમારો સંપર્ક નંબર શું છે? KB: +91 81416 76567, info@qrolic.com, Rajkot"},
+    {"id": "services", "system": "તમે Qrolic ના પ્રતિનિધિ છો. Gujarati માં 1 વાક્યમાં જવાબ આપો.", "prompt": "તમે કઈ સેવાઓ આપો છો? KB: web designing, web development, WordPress maintenance, migration, ecommerce, plugin development"},
+    {"id": "out_of_kb", "system": "તમે Qrolic ના પ્રતિનિધિ છો. Gujarati માં જવાબ આપો.", "prompt": "શું તમે Tesla માટે વેબસાઇટ બનાવી છે? KB માં આ માહિતી નથી."}
+  ]
+}

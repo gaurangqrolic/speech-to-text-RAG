@@ -1,0 +1,20 @@
+# Install CPU-only PyTorch first if a backend needs it:
+# pip install torch --index-url https://download.pytorch.org/whl/cpu
+numpy
+soundfile
+scipy
+huggingface_hub
+onnxruntime
+# indic_tiny (ONNX path needs only numpy + onnxruntime + huggingface_hub)
+# mithi
+transformers>=5.0
+safetensors>=0.4
+sentencepiece>=0.2
+misaki[en]>=0.9.4
+espeakng-loader>=0.2.4
+phonemizer-fork>=3.3.2
+spacy>=3.8
+# pocket
+pocket-tts
+# piper
+piper-tts>=1.8
