@@ -21,6 +21,18 @@ Browser (mic or text)
 All four calls use the Gemini **Interactions API** (`POST /v1beta/interactions`) and one
 `GEMINI_API_KEY`. `node:sqlite` (built into Node 24) provides FTS5 — no extra dependencies.
 
+## TTS provider A/B switch
+
+`.env` → `TTS_PROVIDER=gemini` (default) or `TTS_PROVIDER=sarvam`.
+
+- **gemini** — `gemini-3.8-flash-tts`, voice `PROTO_TTS_VOICE` (`gu-in-techagent-1`)
+- **sarvam** — Bulbul v4 Flash (`SARVAM_TTS_MODEL`, `SARVAM_TTS_VOICE`), needs a
+  **platform API key** in `SARVAM_API_KEY` (the Voice Agents key does not work on
+  `api.sarvam.ai`). Get one at https://indus.sarvam.ai/key-management.
+
+`GET /api/health` shows the active provider/voice, and each turn response includes
+`ttsProvider` plus a provider-aware cost estimate.
+
 ## Run
 
 ```bash

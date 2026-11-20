@@ -26,7 +26,18 @@ export const config = {
     // quota bucket, supports Gujarati, and uses the identical API schema.
     tts: "gemini-3.8-flash-tts",
   },
-  voice: process.env.PROTO_TTS_VOICE || "Kore",
-  // Approximate public pricing, INR per USD for the cost readout only.
+  // TTS provider switch: "gemini" (default) or "sarvam" (Bulbul v4 Flash).
+  ttsProvider: (process.env.TTS_PROVIDER || "gemini").toLowerCase(),
+  voice: process.env.PROTO_TTS_VOICE || "gu-in-techagent-1",
+  sarvam: {
+    apiKey: process.env.SARVAM_API_KEY || process.env.SAMVAAD_API_KEY || null,
+    model: process.env.SARVAM_TTS_MODEL || "bulbul:v4-flash",
+    speaker: process.env.SARVAM_TTS_VOICE || "shubh_enhi_ads",
+  },
+  // Approximate public pricing, used only for the per-turn cost readout.
   inrPerUsd: 95,
+  rates: {
+    geminiTtsUsdPer10s: 0.00225, // gemini-3.8-flash-tts
+    sarvamTtsInrPer1kChars: 1.0, // bulbul:v4-flash docs rate
+  },
 };

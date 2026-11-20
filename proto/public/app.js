@@ -82,7 +82,7 @@ async function run(payload) {
     $("answer").textContent = data.answer || "—";
     $("query").textContent = `search query: ${data.englishQuery}`;
     $("timings").textContent = `timings: ${JSON.stringify(data.timings)}`;
-    $("cost").textContent = `cost: ${JSON.stringify(data.cost)} (approx, INR)`;
+    $("cost").textContent = `cost (${data.ttsProvider || "?"}): ${JSON.stringify(data.cost)} (approx, INR)`;
     $("chunks").textContent =
       data.chunks?.length
         ? data.chunks

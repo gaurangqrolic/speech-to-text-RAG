@@ -154,7 +154,51 @@ export async function searchQuery(question) {
   return textOf(r) || question;
 }
 
+async function speakSarvam(text) {
+  if (!config.sarvam.apiKey) {
+    throw new Error(
+      "Missing SARVAM_API_KEY (or SAMVAAD_API_KEY) needed for Bulbul TTS"
+    );
+  }
+  const res = await fetch("https://api.sarvam.ai/text-to-speech", {
+    method: "POST",
+    headers: {
+      "api-subscription-key": config.sarvam.apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      language_code: "gu-IN",
+      model: config.sarvam.model,
+      speaker: config.sarvam.speaker,
+      speech_sample_rate: 24000,
+    }),
+  });
+  const raw = await res.text();
+  let json;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new Error(`Sarvam TTS error ${res.status}: ${raw.slice(0, 300)}`);
+  }
+  if (!res.ok) {
+    const message = json?.error?.message || JSON.stringify(json).slice(0, 300);
+    throw new Error(`Sarvam TTS error ${res.status}: ${message}`);
+  }
+  const audio = Array.isArray(json.audios) ? json.audios.join("") : json.audios;
+  if (!audio) throw new Error("Sarvam TTS returned no audio");
+  return { audio, usage: null, requestId: json.request_id };
+}
+
 export async function speak(text) {
+  if (config.ttsProvider === "sarvam") {
+    const r = await speakSarvam(text);
+    return { ...r, provider: "sarvam" };
+  }
+  if (config.ttsProvider !== "gemini") {
+    throw new Error(`Unknown TTS_PROVIDER: ${config.ttsProvider}`);
+  }
+
   const r = await interaction({
     model: config.models.tts,
     input: [
@@ -170,5 +214,5 @@ export async function speak(text) {
     response_format: { type: "audio" },
     generation_config: { speech_config: [{ voice: config.voice }] },
   });
-  return { audio: audioOf(r), usage: r.usage };
+  return { audio: audioOf(r), usage: r.usage, provider: "gemini" };
 }

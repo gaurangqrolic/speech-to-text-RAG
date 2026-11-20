@@ -15,7 +15,16 @@ const init = rag.buildIndex();
 console.log(`[rag] indexed ${init.files} files / ${init.chunks} chunks`);
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, ...rag.stats(), models: config.models });
+  res.json({
+    ok: true,
+    ...rag.stats(),
+    models: config.models,
+    ttsProvider: config.ttsProvider,
+    ttsVoice:
+      config.ttsProvider === "sarvam"
+        ? `${config.sarvam.model} / ${config.sarvam.speaker}`
+        : config.voice,
+  });
 });
 
 app.get("/api/rag/search", (req, res) => {
@@ -119,9 +128,18 @@ app.post("/api/voice/turn", async (req, res) => {
     }
     timings.ttsMs = Date.now() - ttsStart;
     const seconds = gemini.audioSeconds(spoken?.audio);
-    // gemini-3.8-flash-tts: $9/M audio out = $0.00225 per 10s.
     cost.ttsInr = spoken
-      ? Number(((seconds / 10) * 0.00225 * config.inrPerUsd).toFixed(4))
+      ? config.ttsProvider === "sarvam"
+        ? Number(
+            ((answer.text.length / 1000) * config.rates.sarvamTtsInrPer1kChars).toFixed(4)
+          )
+        : Number(
+            (
+              (seconds / 10) *
+              config.rates.geminiTtsUsdPer10s *
+              config.inrPerUsd
+            ).toFixed(4)
+          )
       : 0;
 
     timings.totalMs = Date.now() - t0;
@@ -135,6 +153,7 @@ app.post("/api/voice/turn", async (req, res) => {
       englishQuery,
       answer: answer.text,
       audio: spoken?.audio || null,
+      ttsProvider: config.ttsProvider,
       audioSeconds: Number(seconds.toFixed(2)),
       chunks,
       timings,
