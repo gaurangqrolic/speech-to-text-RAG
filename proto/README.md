@@ -32,6 +32,11 @@ All four calls use the Gemini **Interactions API** (`POST /v1beta/interactions`)
   **platform API key** in `SARVAM_API_KEY` (the Voice Agents key does not work on
   `api.sarvam.ai`). Get one at https://indus.sarvam.ai/key-management.
 
+Phone numbers are rewritten deterministically before TTS: `+91 81416 76567`
+becomes `9 1, 8 1 4 1 6, 7 6 5 6 7` so the voice reads every digit separately
+(including the country code) instead of "eighty-one thousand…". The displayed
+`answer` stays readable; `spokenText` is what TTS receives.
+
 `GET /api/health` shows the active provider/voice, and each turn response includes
 `ttsProvider` plus a provider-aware cost estimate. Rates auto-follow the selected
 model: `flash` $9/M vs `flash-lite` $6/M audio tokens, and Bulbul `v4-flash` ₹1/1k

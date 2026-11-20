@@ -59,6 +59,28 @@ export function audioOf(response) {
   return found;
 }
 
+/**
+ * Rewrite phone numbers into a form TTS will read digit-by-digit.
+ * Handles "+91 81416 76567", "91 8141676567", 10 bare digits, and Gujarati digits.
+ */
+export function normalizePhoneForSpeech(text) {
+  const guToAscii = {
+    "૦": "0", "૧": "1", "૨": "2", "૩": "3", "૪": "4",
+    "૫": "5", "૬": "6", "૭": "7", "૮": "8", "૯": "9",
+  };
+  const spaced = text.replace(/[૦-૯]/g, (d) => guToAscii[d]);
+  const grouped = (a, b) => `9 1, ${a.split("").join(" ")}, ${b.split("").join(" ")}`;
+
+  return spaced
+    // +91 81416 76567 / 91-81416-76567 / 91 8141676567
+    .replace(
+      /\+?\s*91[\s-]*(\d{5})[\s-]*(\d{5})/g,
+      (_m, a, b) => grouped(a, b)
+    )
+    // bare 10-digit number
+    .replace(/(?<!\d)(\d{5})[\s-]*(\d{5})(?!\d)/g, (_m, a, b) => grouped(a, b));
+}
+
 /** WAV/PCM duration in seconds from base64 audio (best effort). */
 export function audioSeconds(base64) {
   if (!base64) return 0;
@@ -100,7 +122,7 @@ export async function answer({ question, chunks }) {
     "Sound like a person from Qrolic, not a website: acknowledge the caller's specific situation in their own words (for example, cafe owner, moving from another technology, wanting custom functionality), then say what we can do for them. Do NOT recite marketing taglines, page headings, service lists, or phrases like 'exclusive WordPress specialists', 'trusted by leading companies', 'tailored solutions'.",
     "Never say 'according to the passage', 'the knowledge base says', 'services include', or 'our website states'. Just answer directly in our own voice.",
     "If replying in Gujarati, write technical terms in Gujarati script: વેબ ડિઝાઇન, વર્ડપ્રેસ, વૂકોમર્સ, પ્લગઇન, ઇમેઇલ. If replying in English, use plain English words.",
-    "PHONE NUMBERS: always ASCII digits with country code and spaces — the KB number +91 81416 76567 is spoken as '91 8 1 4 1 6 7 6 5 6 7'. Never Gujarati digits or one concatenated number.",
+    "Phone numbers: keep them exactly as written in the passages (for example +91 81416 76567). The system converts them to digit-by-digit speech after you reply, so do not try to spell them out yourself.",
     "Scope rule — CRITICAL: if the caller did NOT ask for contact information, do NOT include ANY phone number, email or address in the reply. Never add a closing line like 'call us for more info'. If asked ONLY for the phone number, reply with ONLY the phone number. If asked for contact information/details, give all three (phone, info@qrolic.com, Rajkot address).",
     "If the passages do not contain the answer, say briefly that a Qrolic team member will follow up. Never mention passages, retrieval, or a knowledge base.",
   ].join(" ");

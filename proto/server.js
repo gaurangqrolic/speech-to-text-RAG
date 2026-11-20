@@ -167,11 +167,14 @@ app.post("/api/voice/turn", async (req, res) => {
 
     // TTS is the last stage — if it fails (e.g. rate limit), still return
     // everything that already succeeded so the UI can show the STT response.
+    // Keep the displayed answer readable, but feed TTS a digit-by-digit version
+    // of any phone number so it is never read as a large whole number.
+    const spokenText = gemini.normalizePhoneForSpeech(answer.text);
     const ttsStart = Date.now();
     let spoken = null;
     let ttsError = null;
     try {
-      spoken = await gemini.speak(answer.text);
+      spoken = await gemini.speak(spokenText);
     } catch (err) {
       ttsError = err.message || String(err);
       console.error("[turn] TTS failed:", ttsError);
@@ -181,7 +184,7 @@ app.post("/api/voice/turn", async (req, res) => {
     cost.ttsInr = spoken
       ? config.ttsProvider === "sarvam"
         ? Number(
-            ((answer.text.length / 1000) * config.rates.sarvamTtsInrPer1kChars).toFixed(4)
+            ((spokenText.length / 1000) * config.rates.sarvamTtsInrPer1kChars).toFixed(4)
           )
         : Number(
             (
@@ -202,6 +205,7 @@ app.post("/api/voice/turn", async (req, res) => {
       sttRaw,
       englishQuery,
       answer: answer.text,
+      spokenText,
       audio: spoken?.audio || null,
       ttsProvider: config.ttsProvider,
       audioSeconds: Number(seconds.toFixed(2)),

@@ -80,7 +80,7 @@ async function run(payload) {
     $("sttRaw").textContent =
       data.sttRaw ?? "(text input — STT was skipped)";
     $("answer").textContent = data.answer || "—";
-    $("query").textContent = `search query: ${data.englishQuery}`;
+    $("query").textContent = `search query: ${data.englishQuery}\nspoken as: ${data.spokenText || data.answer}`;
     $("timings").textContent = `timings: ${JSON.stringify(data.timings)}`;
     $("cost").textContent = `cost (${data.ttsProvider || "?"}): ${JSON.stringify(data.cost)} (approx, INR)`;
     $("chunks").textContent =
