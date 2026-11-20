@@ -25,7 +25,9 @@ All four calls use the Gemini **Interactions API** (`POST /v1beta/interactions`)
 
 `.env` → `TTS_PROVIDER=gemini` (default) or `TTS_PROVIDER=sarvam`.
 
-- **gemini** — `gemini-3.8-flash-tts`, voice `PROTO_TTS_VOICE` (`gu-in-techagent-1`)
+- **gemini** — model from `GEMINI_TTS_MODEL` (`gemini-3.8-flash-tts` or
+  `gemini-3.8-flash-lite-tts`), voice `PROTO_TTS_VOICE` (`gu-in-techagent-1`).
+  The cost readout auto-adjusts to $9/M vs $6/M audio tokens.
 - **sarvam** — Bulbul v4 Flash (`SARVAM_TTS_MODEL`, `SARVAM_TTS_VOICE`), needs a
   **platform API key** in `SARVAM_API_KEY` (the Voice Agents key does not work on
   `api.sarvam.ai`). Get one at https://indus.sarvam.ai/key-management.

@@ -18,7 +18,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     ...rag.stats(),
-    models: config.models,
+    models: { ...config.models, tts: config.geminiTtsModel },
     ttsProvider: config.ttsProvider,
     ttsVoice:
       config.ttsProvider === "sarvam"

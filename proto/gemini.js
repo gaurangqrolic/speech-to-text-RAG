@@ -200,7 +200,7 @@ export async function speak(text) {
   }
 
   const r = await interaction({
-    model: config.models.tts,
+    model: config.geminiTtsModel,
     input: [
       {
         type: "user_input",

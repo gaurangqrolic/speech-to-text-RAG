@@ -15,6 +15,9 @@ if (!process.env.GEMINI_API_KEY) {
   );
 }
 
+const geminiTtsModel = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
+const defaultTtsRate = geminiTtsModel.includes("flash-lite") ? 0.0015 : 0.00225;
+
 export const config = {
   port: Number(process.env.PROTO_PORT) || 3001,
   apiKey: process.env.GEMINI_API_KEY,
@@ -22,12 +25,11 @@ export const config = {
   models: {
     stt: "gemini-3.5-transcribe",
     llm: "gemini-3.5-flash-lite",
-    // Flash-Lite TTS hit a 10-request/day free-tier cap; Flash TTS has its own
-    // quota bucket, supports Gujarati, and uses the identical API schema.
-    tts: "gemini-3.8-flash-tts",
   },
   // TTS provider switch: "gemini" (default) or "sarvam" (Bulbul v4 Flash).
   ttsProvider: (process.env.TTS_PROVIDER || "gemini").toLowerCase(),
+  // Gemini TTS model A/B: gemini-3.8-flash-tts | gemini-3.8-flash-lite-tts.
+  geminiTtsModel,
   voice: process.env.PROTO_TTS_VOICE || "gu-in-techagent-1",
   sarvam: {
     apiKey: process.env.SARVAM_API_KEY || process.env.SAMVAAD_API_KEY || null,
@@ -37,7 +39,8 @@ export const config = {
   // Approximate public pricing, used only for the per-turn cost readout.
   inrPerUsd: 95,
   rates: {
-    geminiTtsUsdPer10s: 0.00225, // gemini-3.8-flash-tts
+    // Derived from GEMINI_TTS_MODEL, or override with GEMINI_TTS_USD_PER_10S.
+    geminiTtsUsdPer10s: Number(process.env.GEMINI_TTS_USD_PER_10S) || defaultTtsRate,
     sarvamTtsInrPer1kChars: 1.0, // bulbul:v4-flash docs rate
   },
 };
