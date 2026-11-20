@@ -57,55 +57,122 @@ $("copyDiagBtn").addEventListener("click", () => {
   copyText(diag, $("copyDiagBtn"), "✅ Diagnostics copied");
 });
 
+function decodeMeta(res) {
+  const b64 = res.headers.get("X-Meta");
+  if (!b64) return null;
+  try {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
+}
+
+function renderMeta(data) {
+  $("transcript").textContent = data.transcript || "—";
+  $("sttRaw").textContent = data.sttRaw ?? "(text input — STT was skipped)";
+  $("answer").textContent = data.answer || "—";
+  $("query").textContent =
+    `search query: ${data.englishQuery}\n` +
+    `spoken as: ${data.spokenText || data.answer}\n` +
+    `turn: ${data.grounded === null ? "?" : data.grounded ? "grounded" : "ungrounded"}` +
+    ` · context: ${data.contextTurns || 0} prior turn(s)` +
+    `${data.cached ? " · cached" : ""}`;
+  $("timings").textContent = `timings: ${JSON.stringify(data.timings)}`;
+  $("cost").textContent = `cost (${data.ttsProvider || "?"}): ${JSON.stringify(data.cost)} (approx, INR)`;
+  $("chunks").textContent =
+    data.chunks?.length
+      ? data.chunks
+          .map((c, i) => `#${i + 1} ${c.file} (score ${c.score})\n${c.text}`)
+          .join("\n\n---\n\n")
+      : "no chunks retrieved";
+}
+
+function appendBuffer(sb, buf) {
+  return new Promise((resolve, reject) => {
+    const done = () => {
+      sb.removeEventListener("updateend", done);
+      resolve();
+    };
+    sb.addEventListener("updateend", done);
+    sb.addEventListener("error", () => reject(new Error("audio decode error")), { once: true });
+    try {
+      sb.appendBuffer(buf);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+async function playStream(res, codec) {
+  const player = $("player");
+  const mime = codec === "audio/mpeg" ? "audio/mpeg" : "audio/wav";
+  const reader = res.body.getReader();
+  const pieces = [];
+
+  const canStream =
+    window.MediaSource && MediaSource.isTypeSupported(mime) && mime === "audio/mpeg";
+  if (!canStream) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pieces.push(value);
+    }
+    player.src = URL.createObjectURL(new Blob(pieces, { type: mime }));
+    player.classList.remove("hidden");
+    await player.play().catch(() => {});
+    return;
+  }
+
+  const mediaSource = new MediaSource();
+  player.src = URL.createObjectURL(mediaSource);
+  player.classList.remove("hidden");
+  await new Promise((r) => mediaSource.addEventListener("sourceopen", r, { once: true }));
+  const sb = mediaSource.addSourceBuffer(mime);
+  let queue = Promise.resolve();
+  let started = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const buf = value instanceof Uint8Array ? value : new Uint8Array(value);
+    pieces.push(buf);
+    queue = queue.then(() => appendBuffer(sb, buf));
+    if (!started) {
+      started = true;
+      player.play().catch(() => {});
+    }
+  }
+  await queue;
+  if (mediaSource.readyState === "open") mediaSource.endOfStream();
+}
+
 async function run(payload) {
   if (busy) return;
   busy = true;
   $("status").textContent = "thinking…";
   setError("");
   try {
-    const res = await fetch("/api/voice/turn", {
+    const res = await fetch("/api/voice/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, sessionId }),
     });
-    const raw = await res.text();
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error(
-        `HTTP ${res.status} — non-JSON response${raw ? `: ${raw.slice(0, 300)}` : " (empty body; the tunnel may have timed out)"}`
-      );
+    if (!res.ok) {
+      const raw = await res.text();
+      let message = `HTTP ${res.status}`;
+      try {
+        const j = JSON.parse(raw);
+        message = j.error || message;
+      } catch {
+        if (raw) message += `: ${raw.slice(0, 300)}`;
+      }
+      throw new Error(message);
     }
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    // A partial failure (e.g. TTS rate limit) still returns all earlier stages.
-    if (data.error) setError(data.error);
-
-    $("transcript").textContent = data.transcript || "—";
-    $("sttRaw").textContent =
-      data.sttRaw ?? "(text input — STT was skipped)";
-    $("answer").textContent = data.answer || "—";
-    $("query").textContent =
-      `search query: ${data.englishQuery}\n` +
-      `spoken as: ${data.spokenText || data.answer}\n` +
-      `turn: ${data.grounded === null ? "?" : data.grounded ? "grounded" : "ungrounded"}` +
-      ` · context: ${data.contextTurns || 0} prior turn(s)` +
-      `${data.timings?.cached ? " · cached" : ""}`;
-    $("timings").textContent = `timings: ${JSON.stringify(data.timings)}`;
-    $("cost").textContent = `cost (${data.ttsProvider || "?"}): ${JSON.stringify(data.cost)} (approx, INR)`;
-    $("chunks").textContent =
-      data.chunks?.length
-        ? data.chunks
-            .map((c, i) => `#${i + 1} ${c.file} (score ${c.score})\n${c.text}`)
-            .join("\n\n---\n\n")
-        : "no chunks retrieved";
-
-    if (data.audio) {
-      const player = $("player");
-      player.src = `data:audio/wav;base64,${data.audio}`;
-      player.classList.remove("hidden");
-      await player.play().catch(() => {});
-    }
+    const meta = decodeMeta(res);
+    if (!meta) throw new Error("Stream response missing metadata");
+    renderMeta(meta);
+    if (meta.cached) setError("");
+    await playStream(res, meta.audioCodec || "wav");
   } catch (err) {
     setError(err.message);
   } finally {

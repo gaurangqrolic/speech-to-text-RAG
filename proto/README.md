@@ -21,6 +21,22 @@ Browser (mic or text)
 All four calls use the Gemini **Interactions API** (`POST /v1beta/interactions`) and one
 `GEMINI_API_KEY`. `node:sqlite` (built into Node 24) provides FTS5 — no extra dependencies.
 
+## Audio streaming (latency)
+
+The UI now calls `POST /api/voice/stream`. The server sends MP3 audio chunks as
+Bulbul generates them and a base64 `X-Meta` header with transcript/answer/chunks/
+timings. The browser uses MediaSource to start playback on the **first chunk**
+instead of waiting for the whole clip; `/api/voice/turn` remains as a buffered
+JSON endpoint for debugging.
+
+To reduce generation time further: `top_k` is 3, chunk text is capped at 800
+chars, and the few-shot prompt has one example. Repeated FAQ questions hit the
+answer/audio cache (~8–12 ms vs ~4 s).
+
+With `TTS_PROVIDER=gemini`, streaming is not supported by the Interactions API —
+the server falls back to a single buffered WAV block, which the browser plays
+at the end.
+
 ## Conversation context, grounding & caching
 
 - The browser keeps a `sessionId` in `sessionStorage` and sends it with every turn.

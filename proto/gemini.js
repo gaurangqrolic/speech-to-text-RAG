@@ -132,10 +132,8 @@ export async function answer({ question, chunks, history = [] }) {
     "Scope rule — CRITICAL: if the caller did NOT ask for contact information, do NOT include ANY phone number, email or address in the reply. Never add a closing line like 'call us for more info'. If asked ONLY for the phone number, reply with ONLY the phone number. If asked for contact information/details, give all three (phone, info@qrolic.com, Rajkot address).",
     "If the passages do not contain the answer, say briefly that a Qrolic team member will follow up. Never mention passages, retrieval, or a knowledge base.",
     "Use the earlier turns only to resolve pronouns such as 'એ', 'તે', 'it', 'that' — do not repeat facts already given unless the caller asks again.",
-    "TONE EXAMPLES — match these exactly:",
+    "TONE EXAMPLE — match this exactly:",
     "Caller: 'તમારી સાઇટ ધીમી છે, શું કરી શકો?' → answer: 'અમે સ્પીડ ઓડિટ કરીને ધીમી સાઇટને ઝડપી બનાવીએ છીએ.'",
-    "Caller: 'How can you help with custom functionality?' → answer: 'We can build custom WordPress plugins for the exact features you need.'",
-    "Caller: 'તમે Tesla માટે કામ કર્યું છે?' → answer: 'આ અંગે અમારી પાસે માહિતી નથી; ક્રોલિક ટીમ તમારો સંપર્ક કરશે.'",
     "OUTPUT FORMAT: return ONLY a JSON object, no other text: {\"answer\":\"<your spoken reply>\",\"sources\":[\"<filename.md>\",...]}. sources must be filenames copied from the passages, or [] if none were used.",
   ].join(" ");
 
@@ -225,24 +223,28 @@ export async function searchQuery(question) {
   return textOf(r) || question;
 }
 
+function sarvamTtsBody(text, codec = "wav") {
+  return {
+    text,
+    language_code: "gu-IN",
+    model: config.sarvam.model,
+    speaker: config.sarvam.speaker,
+    speech_sample_rate: 24000,
+    output_audio_codec: codec,
+    pace: config.sarvam.pace,
+    temperature: config.sarvam.temperature,
+    enable_preprocessing: config.sarvam.preprocessing,
+    ...(config.sarvam.dictId ? { dict_id: config.sarvam.dictId } : {}),
+  };
+}
+
 async function speakSarvam(text) {
   if (!config.sarvam.apiKey) {
     throw new Error(
       "Missing SARVAM_API_KEY (or SAMVAAD_API_KEY) needed for Bulbul TTS"
     );
   }
-  const body = {
-    text,
-    language_code: "gu-IN",
-    model: config.sarvam.model,
-    speaker: config.sarvam.speaker,
-    speech_sample_rate: 24000,
-    output_audio_codec: "wav",
-    pace: config.sarvam.pace,
-    temperature: config.sarvam.temperature,
-    enable_preprocessing: config.sarvam.preprocessing,
-    ...(config.sarvam.dictId ? { dict_id: config.sarvam.dictId } : {}),
-  };
+  const body = sarvamTtsBody(text, "wav");
 
   if (!config.sarvam.streaming) {
     const res = await fetch("https://api.sarvam.ai/text-to-speech", {
@@ -314,4 +316,29 @@ export async function speak(text) {
     generation_config: { speech_config: [{ voice: config.voice }] },
   });
   return { audio: audioOf(r), usage: r.usage, provider: "gemini" };
+}
+
+/**
+ * Returns a live audio stream (MP3 chunks) for the browser to play while it is
+ * still being generated. Only Bulbul supports this; Gemini falls back to a
+ * single buffered WAV block, handled by the caller.
+ */
+export async function speakStream(text) {
+  if (config.ttsProvider !== "sarvam") return null;
+  if (!config.sarvam.apiKey) {
+    throw new Error("Missing SARVAM_API_KEY needed for streaming Bulbul TTS");
+  }
+  const res = await fetch("https://api.sarvam.ai/text-to-speech/stream", {
+    method: "POST",
+    headers: {
+      "api-subscription-key": config.sarvam.apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(sarvamTtsBody(text, "mp3")),
+  });
+  if (!res.ok) {
+    const raw = await res.text();
+    throw new Error(`Sarvam TTS stream error ${res.status}: ${raw.slice(0, 300)}`);
+  }
+  return res.body;
 }

@@ -90,7 +90,7 @@ export function search(query, topK = 5, fileFilter = null) {
   return rows.map((r) => ({
     file: r.file,
     title: r.title,
-    text: r.text.slice(0, 1400),
+    text: r.text.slice(0, 800),
     score: Number(r.score.toFixed(3)),
   }));
 }
