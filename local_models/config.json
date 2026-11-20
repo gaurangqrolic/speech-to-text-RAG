@@ -37,10 +37,11 @@
       "wer_fleurs": 18.98
     },
     "whisper_small": {
-      "repo": "vasista22/whisper-gujarati-small",
+      "repo": "ukta-app/whisper-gujarati-ct2",
       "runner": "faster_whisper",
       "license": "Apache-2.0",
-      "wer_fleurs": 14.73
+      "wer_fleurs": 14.73,
+      "notes": "CTranslate2 int8 conversion of vasista22/whisper-gujarati-small; required by faster-whisper"
     },
     "whisper_medium_ct2": {
       "repo": "managergil/ct2-whisper-gujarati-medium",

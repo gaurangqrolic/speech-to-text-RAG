@@ -146,9 +146,31 @@ def stt_backend(name):
     runner = cfg["runner"]
 
     if runner == "faster_whisper":
+        import subprocess
         from faster_whisper import WhisperModel
 
-        model = cached(f"stt:{name}", lambda: WhisperModel(cfg["repo"], device="cpu", compute_type="int8"))
+        def build_whisper():
+            try:
+                return WhisperModel(cfg["repo"], device="cpu", compute_type="int8")
+            except RuntimeError as exc:
+                if "model.bin" not in str(exc):
+                    raise
+                # Raw Transformers checkpoint: convert to CTranslate2 once.
+                converted = MODEL_DIR / f"ct2_{name}"
+                if not (converted / "model.bin").exists():
+                    subprocess.run(
+                        [
+                            "ct2-transformers-converter",
+                            "--model", cfg["repo"],
+                            "--output_dir", str(converted),
+                            "--quantization", "int8",
+                            "--copy_files", "tokenizer.json", "preprocessor_config.json",
+                        ],
+                        check=True,
+                    )
+                return WhisperModel(str(converted), device="cpu", compute_type="int8")
+
+        model = cached(f"stt:{name}", build_whisper)
         def run(path, opts):
             segments, info = model.transcribe(path, language="gu", beam_size=opts.get("beam_size", 1))
             return {"text": "".join(s.text for s in segments).strip(), "language": info.language}

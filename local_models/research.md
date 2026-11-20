@@ -18,8 +18,8 @@ Avoid for commercial use: `facebook/mms-tts-guj` (CC BY-NC 4.0), Piper `gu_IN-ni
 
 | Backend | Repo | Size | License | Notes |
 |---|---|---|---|---|
-| `whisper_base` | `vasista22/whisper-gujarati-base` | ~145 MB | Apache-2.0 | WER 18.98% FLEURS; use via faster-whisper/CT2 |
-| `whisper_small` | `vasista22/whisper-gujarati-small` | ~480 MB | Apache-2.0 | WER 14.73% FLEURS |
+| `whisper_base` | `vasista22/whisper-gujarati-base` | ~145 MB | Apache-2.0 | WER 18.98% FLEURS; raw checkpoint — sidecar auto-converts to CT2 on first use |
+| `whisper_small` | `ukta-app/whisper-gujarati-ct2` | int8 CT2 | Apache-2.0 | WER 14.73% FLEURS; ready-made CT2 conversion of `vasista22/whisper-gujarati-small` |
 | `whisper_medium_ct2` | `managergil/ct2-whisper-gujarati-medium` | ~2.9 GB INT8 | Apache-2.0 | WER 12.33%, ~22 s per 1 min audio on CPU |
 | `indicconformer` | `Docglasses-AI/indic-conformer-600m-sherpa-onnx-int8` (gu file) | ~659 MB | MIT | offline CTC, WER 27.2% on medical dialogues; ~0.1x RTF on phone, faster on PC |
 
