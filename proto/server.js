@@ -80,9 +80,12 @@ app.post("/api/voice/turn", async (req, res) => {
 
     // Contact questions have a canonical document; FTS over the whole corpus
     // gets distracted by CTA sections on every service page.
-    const contactIntent = /\b(contact|phone|email|address|location|office)\b/i.test(
-      englishQuery
-    );
+    // Use the caller's ORIGINAL question, not the expanded English query —
+    // an LLM-expanded query can contain the word "contact" for unrelated asks.
+    const contactIntent =
+      /(સંપર્ક|નંબર|ફોન|ઇમેઇલ|email|સરનામું|ઓફિસ|ક્યાં|contact number|phone number|address|location)/i.test(
+        question
+      );
     const chunks = contactIntent
       ? rag.search(englishQuery, 5, "page-contact-us.md")
       : rag.search(englishQuery, 5);

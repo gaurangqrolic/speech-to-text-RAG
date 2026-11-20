@@ -129,12 +129,13 @@ const KEYWORDS = [
   ["કેસ", "case study"], ["સ્ટડી", "case study"], ["માલવેર", "malware cleanup"],
   ["હેક", "malware cleanup"], [" maintenance", "maintenance"], ["મેન્ટેનન્સ", "maintenance"],
   ["ભાવ", "pricing cost"], ["કિંમત", "pricing cost"], ["કંપની", "company about"],
+  ["વિશે", "about profile"], ["જણાવો", "about profile"], ["વર્ણન", "about profile"],
 ];
 
 export async function searchQuery(question) {
   const lower = question.toLowerCase();
   const hits = KEYWORDS.filter(([gu]) => lower.includes(gu)).map(([, en]) => en);
-  if (hits.length >= 2) {
+  if (hits.length >= 1) {
     return ["Qrolic", ...new Set(hits)].join(" ");
   }
   // Fallback for unusual questions: let Flash-Lite translate.
