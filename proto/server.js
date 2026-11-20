@@ -68,7 +68,9 @@ app.get("/api/health", (_req, res) => {
     ttsVoice:
       config.ttsProvider === "sarvam"
         ? `${config.sarvam.model} / ${config.sarvam.speaker}`
-        : config.voice,
+        : config.ttsProvider === "local"
+          ? `${config.local.ttsBackend} / ${config.local.ttsVoice}`
+          : config.voice,
     streaming: config.ttsProvider === "sarvam" && config.sarvam.streaming,
     contextTurns: config.contextTurns,
     cacheAnswers: config.cacheAnswers,
