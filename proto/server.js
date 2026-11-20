@@ -45,6 +45,7 @@ function cacheKey(question, history) {
 }
 
 function ttsCost(spokenText, seconds) {
+  if (config.ttsProvider === "local") return 0;
   if (config.ttsProvider === "sarvam") {
     return Number(
       ((spokenText.length / 1000) * config.rates.sarvamTtsInrPer1kChars).toFixed(4)
@@ -61,6 +62,9 @@ app.get("/api/health", (_req, res) => {
     ...rag.stats(),
     models: { ...config.models, tts: config.geminiTtsModel },
     ttsProvider: config.ttsProvider,
+    sttProvider: config.sttProvider,
+    llmProvider: config.llmProvider,
+    localBackends: config.local,
     ttsVoice:
       config.ttsProvider === "sarvam"
         ? `${config.sarvam.model} / ${config.sarvam.speaker}`
@@ -109,7 +113,10 @@ async function prepareTurn(body) {
       null,
       2
     );
-    cost.sttInr = Number(((Number(body.durationMs || 0) / 60000) * 0.48).toFixed(4));
+    cost.sttInr =
+      config.sttProvider === "local"
+        ? 0
+        : Number(((Number(body.durationMs || 0) / 60000) * 0.48).toFixed(4));
   }
 
   if (!question) {

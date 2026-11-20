@@ -35,6 +35,26 @@ export async function interaction(body) {
   return json;
 }
 
+/** Low-level call to the Python local-model sidecar. */
+async function localFetch(path, payload, expect = "json") {
+  const url = `${config.local.url.replace(/\/$/, "")}${path}`;
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    throw new Error(`Local model server unreachable at ${url}: ${err.message}`);
+  }
+  if (!res.ok) {
+    const raw = await res.text();
+    throw new Error(`Local model error ${res.status}: ${raw.slice(0, 400)}`);
+  }
+  return expect === "text" ? Buffer.from(await res.arrayBuffer()) : res.json();
+}
+
 /** Collect the final text output of an interaction. */
 export function textOf(response) {
   if (response.output_text) return response.output_text.trim();
@@ -109,6 +129,23 @@ export function audioSeconds(base64) {
 }
 
 export async function transcribe({ base64, mimeType = "audio/webm" }) {
+  if (config.sttProvider === "local") {
+    const suffix = mimeType.includes("wav") ? ".wav" : ".webm";
+    const result = await localFetch("/stt", {
+      backend: config.local.sttBackend,
+      audio_b64: base64,
+      suffix,
+    });
+    return {
+      text: result.text || "",
+      usage: null,
+      raw: { status: "local", text: result.text, seconds: result.seconds },
+    };
+  }
+  if (config.sttProvider !== "gemini") {
+    throw new Error(`Unknown STT_PROVIDER: ${config.sttProvider}`);
+  }
+
   const r = await interaction({
     model: config.models.stt,
     input: [{ type: "audio", data: base64, mime_type: mimeType }],
@@ -157,14 +194,33 @@ export async function answer({ question, chunks, history = [] }) {
         .join("\n")}\n\n`
     : "";
 
-  const r = await interaction({
-    model: config.models.llm,
-    system_instruction: system,
-    input: `${historyText}Knowledge base passages:\n${context}\n\nCaller question (current turn): ${question}`,
-    generation_config: { max_output_tokens: 300, thinking_level: "minimal" },
-  });
+  const promptText = `${historyText}Knowledge base passages:\n${context}\n\nCaller question (current turn): ${question}`;
+  let raw = "";
+  let usage = null;
 
-  const raw = textOf(r);
+  if (config.llmProvider === "local") {
+    const result = await localFetch("/llm", {
+      backend: config.local.llmBackend,
+      system,
+      prompt: promptText,
+      max_tokens: 300,
+      temperature: 0.2,
+    });
+    raw = result.text || "";
+    usage = result.usage || null;
+  } else if (config.llmProvider === "gemini") {
+    const r = await interaction({
+      model: config.models.llm,
+      system_instruction: system,
+      input: promptText,
+      generation_config: { max_output_tokens: 300, thinking_level: "minimal" },
+    });
+    raw = textOf(r);
+    usage = r.usage;
+  } else {
+    throw new Error(`Unknown LLM_PROVIDER: ${config.llmProvider}`);
+  }
+
   let parsed = null;
   try {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -179,14 +235,14 @@ export async function answer({ question, chunks, history = [] }) {
     const grounded = sources.length === 0 || sources.some((s) => files.has(s));
     return {
       text: grounded ? parsed.answer.trim() : fallbackFor(question),
-      usage: r.usage,
+      usage,
       grounded,
       sources,
       rawAnswer: raw,
     };
   }
 
-  return { text: raw || fallbackFor(question), usage: r.usage, grounded: null, rawAnswer: raw };
+  return { text: raw || fallbackFor(question), usage, grounded: null, rawAnswer: raw };
 }
 
 // Deterministic Gujarati → English keyword map for the KB's topic vocabulary.
@@ -307,6 +363,18 @@ async function speakSarvam(text) {
 }
 
 export async function speak(text) {
+  if (config.ttsProvider === "local") {
+    const wav = await localFetch(
+      "/tts",
+      {
+        backend: config.local.ttsBackend,
+        text,
+        voice: config.local.ttsVoice,
+      },
+      "text"
+    );
+    return { audio: wav.toString("base64"), usage: null, provider: "local" };
+  }
   if (config.ttsProvider === "sarvam") {
     const r = await speakSarvam(text);
     return { ...r, provider: "sarvam" };

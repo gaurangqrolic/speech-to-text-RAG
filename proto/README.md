@@ -56,6 +56,27 @@ lower time-to-first-audio; `SARVAM_TTS_PACE`, `SARVAM_TTS_TEMPERATURE`,
 `enable_preprocessing` is off by default — A/B it against the digit-spaced
 phone number before enabling.
 
+## Local model providers
+
+`STT_PROVIDER`, `LLM_PROVIDER` and `TTS_PROVIDER` can each be `gemini`/`sarvam`
+(defaults) or `local`. With `local`, the Node prototype calls the Python sidecar
+in `local_models/server.py` (default `http://localhost:4000`). Local usage has
+**no API cost**, so the readout shows ₹0 for those stages.
+
+To use local models for everything:
+
+```ini
+TTS_PROVIDER=local
+STT_PROVIDER=local
+LLM_PROVIDER=local
+LOCAL_TTS_BACKEND=indic_tiny
+LOCAL_STT_BACKEND=whisper_small
+LOCAL_LLM_BACKEND=qwen_1_5b
+```
+
+Start the sidecar first (`python local_models/server.py`), then `npm run proto`.
+If a model/dependency is missing, the UI shows a clear error from the sidecar.
+
 ## TTS provider A/B switch
 
 `.env` → `TTS_PROVIDER=gemini` (default) or `TTS_PROVIDER=sarvam`.

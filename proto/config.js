@@ -31,6 +31,16 @@ export const config = {
     // Answer model: gemini-3.5-flash-lite (cheap) or gemini-3.5-flash (better).
     llm: llmModel,
   },
+  // Provider switches: gemini (default) or local (Python sidecar on :4000).
+  sttProvider: (process.env.STT_PROVIDER || "gemini").toLowerCase(),
+  llmProvider: (process.env.LLM_PROVIDER || "gemini").toLowerCase(),
+  local: {
+    url: process.env.LOCAL_MODELS_URL || "http://localhost:4000",
+    sttBackend: process.env.LOCAL_STT_BACKEND || "whisper_small",
+    llmBackend: process.env.LOCAL_LLM_BACKEND || "qwen_1_5b",
+    ttsBackend: process.env.LOCAL_TTS_BACKEND || "indic_tiny",
+    ttsVoice: process.env.LOCAL_TTS_VOICE || "female",
+  },
   // Number of prior turns sent back to the LLM for conversational context.
   contextTurns: Math.max(0, Number(process.env.CONTEXT_TURNS) || 3),
   // Cache complete turns keyed by question + model + voice settings.
