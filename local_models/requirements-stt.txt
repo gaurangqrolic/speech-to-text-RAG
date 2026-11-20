@@ -1,4 +1,7 @@
 faster-whisper
+# faster-whisper 1.2.1 passes metadata_errors to av.open(), removed in PyAV 19.
+# Pin below 19 until a fixed faster-whisper release is published.
+av<19
 huggingface_hub
 sherpa-onnx
 soundfile

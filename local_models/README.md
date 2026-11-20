@@ -20,7 +20,7 @@ pip install -r local_models/requirements-tts.txt
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 # STT
-pip install -r local_models/requirements-stt.txt
+pip install -r local_models/requirements-stt.txt   # pins av<19 for faster-whisper
 
 # LLM
 pip install -r local_models/requirements-llm.txt
