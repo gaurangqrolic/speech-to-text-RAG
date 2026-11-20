@@ -22,7 +22,9 @@ export const config = {
   models: {
     stt: "gemini-3.5-transcribe",
     llm: "gemini-3.5-flash-lite",
-    tts: "gemini-3.8-flash-lite-tts",
+    // Flash-Lite TTS hit a 10-request/day free-tier cap; Flash TTS has its own
+    // quota bucket, supports Gujarati, and uses the identical API schema.
+    tts: "gemini-3.8-flash-tts",
   },
   voice: process.env.PROTO_TTS_VOICE || "Kore",
   // Approximate public pricing, INR per USD for the cost readout only.

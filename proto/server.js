@@ -99,11 +99,23 @@ app.post("/api/voice/turn", async (req, res) => {
       ).toFixed(4)
     );
 
+    // TTS is the last stage — if it fails (e.g. rate limit), still return
+    // everything that already succeeded so the UI can show the STT response.
     const ttsStart = Date.now();
-    const spoken = await gemini.speak(answer.text);
+    let spoken = null;
+    let ttsError = null;
+    try {
+      spoken = await gemini.speak(answer.text);
+    } catch (err) {
+      ttsError = err.message || String(err);
+      console.error("[turn] TTS failed:", ttsError);
+    }
     timings.ttsMs = Date.now() - ttsStart;
-    const seconds = gemini.audioSeconds(spoken.audio);
-    cost.ttsInr = Number(((seconds / 10) * 0.0015 * config.inrPerUsd).toFixed(4));
+    const seconds = gemini.audioSeconds(spoken?.audio);
+    // gemini-3.8-flash-tts: $9/M audio out = $0.00225 per 10s.
+    cost.ttsInr = spoken
+      ? Number(((seconds / 10) * 0.00225 * config.inrPerUsd).toFixed(4))
+      : 0;
 
     timings.totalMs = Date.now() - t0;
     cost.totalInr = Number(
@@ -115,12 +127,13 @@ app.post("/api/voice/turn", async (req, res) => {
       sttRaw,
       englishQuery,
       answer: answer.text,
-      audio: spoken.audio,
+      audio: spoken?.audio || null,
       audioSeconds: Number(seconds.toFixed(2)),
       chunks,
       timings,
       cost,
-      usage: { stt: undefined, llm: u, tts: spoken.usage },
+      ...(ttsError ? { error: `TTS failed: ${ttsError}` } : {}),
+      usage: { llm: u, tts: spoken?.usage || null },
     });
   } catch (err) {
     console.error("[turn] error:", err.message);

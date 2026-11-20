@@ -11,8 +11,10 @@ Browser (mic or text)
     1. STT   gemini-3.5-transcribe     (Gujarati hint + custom vocabulary)
     2. RAG   local SQLite FTS5 over kb/*.md (query translated to English via Flash-Lite)
     3. LLM   gemini-3.5-flash-lite     (grounded, ≤2 spoken sentences)
-    4. TTS   gemini-3.8-flash-lite-tts with a NATIVE Gujarati voice
+    4. TTS   gemini-3.8-flash-tts with a NATIVE Gujarati voice
             (gu-in-techagent-1 / gu-in-concierge-1 from the Extended Voice Library)
+            Note: Flash-Lite TTS hit a 10-request/day free-tier cap, so we use
+            the higher-fidelity Flash TTS ($9/M audio out, same API schema).
   ← { transcript, answer, audio, chunks, timings, cost }
 ```
 
@@ -42,7 +44,7 @@ Useful endpoints:
 |---|---|
 | STT | ₹0.48 / min of caller audio |
 | LLM | $0.30/M in + $2.50/M out (Flash-Lite), converted at ₹95/USD |
-| TTS | $0.0015 / 10 s audio (Flash-Lite TTS promo through 2026-12-31) |
+| TTS | $0.00225 / 10 s audio (Flash TTS; was $0.0015 with Flash-Lite) |
 
 For a 1-minute conversation (30 s each way) the estimated total is ≈ **₹0.75**, vs ₹3.50
 for Samvaad. All three models have a Gemini free tier — the pilot can run at ₹0 subject

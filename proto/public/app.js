@@ -73,6 +73,8 @@ async function run(payload) {
       );
     }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    // A partial failure (e.g. TTS rate limit) still returns all earlier stages.
+    if (data.error) setError(data.error);
 
     $("transcript").textContent = data.transcript || "—";
     $("sttRaw").textContent =
