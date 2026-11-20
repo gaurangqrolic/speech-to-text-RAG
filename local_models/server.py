@@ -276,7 +276,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(result)
             if self.path == "/llm":
                 name = payload["backend"]
-                result = llm_backend(name)(payload)
+                messages = payload.get("messages")
+                if not messages:
+                    messages = []
+                    if payload.get("system"):
+                        messages.append({"role": "system", "content": payload["system"]})
+                    messages.append({"role": "user", "content": payload["prompt"]})
+                result = llm_backend(name)({**payload, "messages": messages})
                 result["seconds"] = round(time.time() - started, 3)
                 return self.send_json(result)
             return self.send_json(*error("not found", 404))
