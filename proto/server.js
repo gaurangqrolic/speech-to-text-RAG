@@ -116,6 +116,19 @@ app.post("/api/voice/turn", async (req, res) => {
       if (/(cafe|restaurant|hospitality|કેફે|રેસ્ટોરન્ટ|હોસ્પિટાલિટી)/i.test(question)) {
         topicFiles.push("page-leading-web-design-web-development-and-wordpress-company.md");
       }
+      if (/(case\s*stud|portfolio|studies|કેસ|સ્ટડી)/i.test(question)) {
+        topicFiles.push(
+          "case-study-qrolic-website-speed-performance-optimization.md",
+          "case-study-wordpress-malware-cleanup-case-study.md",
+          "case-study-first-pass-airport-website.md"
+        );
+      }
+      if (
+        !topicFiles.length &&
+        /(services|service|સેવાઓ|સેવા)/i.test(question)
+      ) {
+        topicFiles.push("page-services.md");
+      }
       if (topicFiles.length) {
         const per = Math.max(2, Math.ceil(6 / topicFiles.length));
         const routed = topicFiles.flatMap((f) => rag.search(englishQuery, per, f));
@@ -126,6 +139,23 @@ app.post("/api/voice/turn", async (req, res) => {
     const llmStart = Date.now();
     const answer = await gemini.answer({ question, chunks });
     timings.llmMs = Date.now() - llmStart;
+
+    // Safety net: the LLM sometimes appends a contact line even when it was
+    // not asked. Drop any sentence containing contact details if the caller
+    // did not request contact information.
+    if (!contactIntent) {
+      const filtered = answer.text
+        .split(/(?<=[.!?।]\s+)/)
+        .filter(
+          (s) =>
+            !/(81416|76567|info@qrolic\.com|\+?\s*91[\s-]*8|ફોન|phone|call us|સંપર્ક કરો)/i.test(
+              s
+            )
+        )
+        .join(" ")
+        .trim();
+      if (filtered) answer.text = filtered;
+    }
     const u = answer.usage || {};
     cost.llmInr = Number(
       (
