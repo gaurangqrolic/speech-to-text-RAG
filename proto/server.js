@@ -83,12 +83,16 @@ app.post("/api/voice/turn", async (req, res) => {
     // Use the caller's ORIGINAL question, not the expanded English query —
     // an LLM-expanded query can contain the word "contact" for unrelated asks.
     const contactIntent =
-      /(સંપર્ક|નંબર|ફોન|ઇમેઇલ|email|સરનામું|ઓફિસ|ક્યાં|contact number|phone number|address|location)/i.test(
+      /(સંપર્ક|નંબર|ફોન|ઇમેઇલ|email|ઇન્ફોર્મેશન|કોન્ટેક્ટ|contact|માહિતી|information|સરનામું|ઓફિસ|ક્યાં|address|location|phone)/i.test(
         question
       );
-    const chunks = contactIntent
+    let chunks = contactIntent
       ? rag.search(englishQuery, 5, "page-contact-us.md")
       : rag.search(englishQuery, 5);
+    // If the translated query was too generic, still force the contact doc.
+    if (contactIntent && !chunks.length) {
+      chunks = rag.search("contact us phone email address", 5, "page-contact-us.md");
+    }
 
     const llmStart = Date.now();
     const answer = await gemini.answer({ question, chunks });

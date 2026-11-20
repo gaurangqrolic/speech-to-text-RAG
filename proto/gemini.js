@@ -100,6 +100,7 @@ export async function answer({ question, chunks }) {
     "Use Gujarati script for words, including technical terms: વેબ ડિઝાઇન, વર્ડપ્રેસ, વૂકોમર્સ, ઇમેઇલ.",
     "PHONE NUMBERS: always write ASCII digits, with the country code and spaces between digit groups — the KB number +91 81416 76567 must be spoken as '91 8 1 4 1 6 7 6 5 6 7'. Never use Gujarati digits and never concatenate the digits into one long number.",
     "Scope rule: if asked ONLY for the phone number, reply with ONLY the phone number and nothing else. Never volunteer the address, email, or a closing line. Mention the address only if the caller explicitly asks for address/location; mention email only if the caller asks for email or full contact details.",
+    "If asked for contact information / contact details / 'contact information', give ALL THREE from the KB: the phone number, the email info@qrolic.com, and the Rajkot address. This is the one case where more than one fact is expected.",
     "If the passages do not contain the answer, say briefly that a Qrolic team member will follow up.",
     "Do not mention that passages, retrieval or a knowledge base exist.",
   ].join(" ");
@@ -130,6 +131,10 @@ const KEYWORDS = [
   ["હેક", "malware cleanup"], [" maintenance", "maintenance"], ["મેન્ટેનન્સ", "maintenance"],
   ["ભાવ", "pricing cost"], ["કિંમત", "pricing cost"], ["કંપની", "company about"],
   ["વિશે", "about profile"], ["જણાવો", "about profile"], ["વર્ણન", "about profile"],
+  ["કોન્ટેક્ટ", "contact"], ["contact", "contact"], ["સંપર્ક", "contact"],
+  ["ઇન્ફોર્મેશન", "contact details"], ["information", "contact details"],
+  ["માહિતી", "contact details"], ["details", "contact details"],
+  ["આપો", "share"], ["આપવું", "share"], ["નંબર", "phone number"],
 ];
 
 export async function searchQuery(question) {
