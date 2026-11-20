@@ -151,7 +151,10 @@ async function prepareTurn(body) {
         "case-study-first-pass-airport-website.md"
       );
     }
-    if (!topicFiles.length && /(services|service|સેવાઓ|સેવा)/i.test(question)) {
+    if (
+      !topicFiles.length &&
+      /(services|service|સેવાઓ|સેવा|સર્વિસ|સર્વિસીસ|સર્વિસિસ)/i.test(question)
+    ) {
       topicFiles.push("page-services.md");
     }
     if (topicFiles.length) {
@@ -202,6 +205,7 @@ async function prepareTurn(body) {
       .trim();
     if (filtered) answer.text = filtered;
   }
+  answer.text = gemini.normalizeGujaratiAnswer(answer.text);
 
   const u = answer.usage || {};
   cost.llmInr = Number(

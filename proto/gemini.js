@@ -81,6 +81,19 @@ export function normalizePhoneForSpeech(text) {
     .replace(/(?<!\d)(\d{5})[\s-]*(\d{5})(?!\d)/g, (_m, a, b) => grouped(a, b));
 }
 
+/**
+ * Gujarati replies sometimes include an English acronym in brackets, e.g.
+ * "એસઇઓ (SEO)" — TTS then reads it twice. Strip the duplicate.
+ */
+export function normalizeGujaratiAnswer(text) {
+  if (!/[\u0A80-\u0AFF]/.test(text)) return text;
+  return text
+    .replace(/\s*\([A-Za-z][^)]*\)/g, "")
+    .replace(/\bSEO\b/g, "એસઇઓ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /** WAV/PCM duration in seconds from base64 audio (best effort). */
 export function audioSeconds(base64) {
   if (!base64) return 0;
@@ -132,6 +145,7 @@ export async function answer({ question, chunks, history = [] }) {
     "Scope rule — CRITICAL: if the caller did NOT ask for contact information, do NOT include ANY phone number, email or address in the reply. Never add a closing line like 'call us for more info'. If asked ONLY for the phone number, reply with ONLY the phone number. If asked for contact information/details, give all three (phone, info@qrolic.com, Rajkot address).",
     "If the passages do not contain the answer, say briefly that a Qrolic team member will follow up. Never mention passages, retrieval, or a knowledge base.",
     "Use the earlier turns only to resolve pronouns such as 'એ', 'તે', 'it', 'that' — do not repeat facts already given unless the caller asks again.",
+    "If the caller asks what services you offer, name 5 to 7 main services in one short sentence — do not answer with only one service.",
     "TONE EXAMPLE — match this exactly:",
     "Caller: 'તમારી સાઇટ ધીમી છે, શું કરી શકો?' → answer: 'અમે સ્પીડ ઓડિટ કરીને ધીમી સાઇટને ઝડપી બનાવીએ છીએ.'",
     "OUTPUT FORMAT: return ONLY a JSON object, no other text: {\"answer\":\"<your spoken reply>\",\"sources\":[\"<filename.md>\",...]}. sources must be filenames copied from the passages, or [] if none were used.",
@@ -202,6 +216,7 @@ const KEYWORDS = [
   ["functionality", "custom plugin development"], ["cafe", "restaurant hospitality"],
   ["restaurant", "restaurant hospitality"], ["hospitality", "restaurant hospitality"],
   ["services", "services"], ["service", "services"],
+  ["સર્વિસ", "services"], ["સર્વિસીસ", "services"], ["સર્વિસિસ", "services"],
   ["case", "case study"], ["studies", "case study"], ["study", "case study"],
   ["portfolio", "case study"], ["કેસ", "case study"], ["સ્ટડી", "case study"],
 ];
