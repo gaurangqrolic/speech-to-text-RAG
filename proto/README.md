@@ -33,7 +33,10 @@ All four calls use the Gemini **Interactions API** (`POST /v1beta/interactions`)
   `api.sarvam.ai`). Get one at https://indus.sarvam.ai/key-management.
 
 `GET /api/health` shows the active provider/voice, and each turn response includes
-`ttsProvider` plus a provider-aware cost estimate.
+`ttsProvider` plus a provider-aware cost estimate. Rates auto-follow the selected
+model: `flash` $9/M vs `flash-lite` $6/M audio tokens, and Bulbul `v4-flash` ₹1/1k
+vs `v3` ₹3/1k characters (override with `GEMINI_TTS_USD_PER_10S` /
+`SARVAM_TTS_INR_PER_1K`). Free-tier usage is shown as a hypothetical paid cost.
 
 ## Run
 

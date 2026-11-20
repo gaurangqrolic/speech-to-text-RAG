@@ -17,6 +17,8 @@ if (!process.env.GEMINI_API_KEY) {
 
 const geminiTtsModel = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
 const defaultTtsRate = geminiTtsModel.includes("flash-lite") ? 0.0015 : 0.00225;
+const sarvamTtsModel = process.env.SARVAM_TTS_MODEL || "bulbul:v4-flash";
+const defaultSarvamRate = sarvamTtsModel.includes("v3") ? 3.0 : 1.0;
 
 export const config = {
   port: Number(process.env.PROTO_PORT) || 3001,
@@ -33,7 +35,7 @@ export const config = {
   voice: process.env.PROTO_TTS_VOICE || "gu-in-techagent-1",
   sarvam: {
     apiKey: process.env.SARVAM_API_KEY || process.env.SAMVAAD_API_KEY || null,
-    model: process.env.SARVAM_TTS_MODEL || "bulbul:v4-flash",
+    model: sarvamTtsModel,
     speaker: process.env.SARVAM_TTS_VOICE || "shubh_enhi_ads",
   },
   // Approximate public pricing, used only for the per-turn cost readout.
@@ -41,6 +43,8 @@ export const config = {
   rates: {
     // Derived from GEMINI_TTS_MODEL, or override with GEMINI_TTS_USD_PER_10S.
     geminiTtsUsdPer10s: Number(process.env.GEMINI_TTS_USD_PER_10S) || defaultTtsRate,
-    sarvamTtsInrPer1kChars: 1.0, // bulbul:v4-flash docs rate
+    // Derived from SARVAM_TTS_MODEL (v3 = ₹3, v4-flash = ₹1 per 1k chars).
+    sarvamTtsInrPer1kChars:
+      Number(process.env.SARVAM_TTS_INR_PER_1K) || defaultSarvamRate,
   },
 };
