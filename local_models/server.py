@@ -309,6 +309,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(result)
             return self.send_json(*error("not found", 404))
         except Exception as exc:
+            print(f"[local] {self.path} error: {type(exc).__name__}: {exc}", file=sys.stderr)
             self.send_json(*error(f"{type(exc).__name__}: {exc}", 500))
 
 
