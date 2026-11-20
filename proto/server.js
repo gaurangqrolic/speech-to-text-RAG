@@ -103,6 +103,26 @@ app.post("/api/voice/turn", async (req, res) => {
       chunks = rag.search("contact us phone email address", 5, "page-contact-us.md");
     }
 
+    // Topic routing: pull the documents that actually answer multi-part asks
+    // instead of letting a generic "Qrolic wordpress" query hit brochure pages.
+    if (!contactIntent) {
+      const topicFiles = [];
+      if (/(migration|migrate|transfer|switch|સ્થાનાંતર|માઇગ્રેશન|માઈગ્રેશન)/i.test(question)) {
+        topicFiles.push("service-wordpress-migration.md");
+      }
+      if (/(custom|plugin|functionality|કસ્ટમ|પ્લગઇન|ફંક્શન)/i.test(question)) {
+        topicFiles.push("service-plugin-development.md");
+      }
+      if (/(cafe|restaurant|hospitality|કેફે|રેસ્ટોરન્ટ|હોસ્પિટાલિટી)/i.test(question)) {
+        topicFiles.push("page-leading-web-design-web-development-and-wordpress-company.md");
+      }
+      if (topicFiles.length) {
+        const per = Math.max(2, Math.ceil(6 / topicFiles.length));
+        const routed = topicFiles.flatMap((f) => rag.search(englishQuery, per, f));
+        if (routed.length) chunks = routed.slice(0, 6);
+      }
+    }
+
     const llmStart = Date.now();
     const answer = await gemini.answer({ question, chunks });
     timings.llmMs = Date.now() - llmStart;
