@@ -21,6 +21,25 @@ Browser (mic or text)
 All four calls use the Gemini **Interactions API** (`POST /v1beta/interactions`) and one
 `GEMINI_API_KEY`. `node:sqlite` (built into Node 24) provides FTS5 — no extra dependencies.
 
+## Conversation context, grounding & caching
+
+- The browser keeps a `sessionId` in `sessionStorage` and sends it with every turn.
+  The server keeps the last `CONTEXT_TURNS` (default 3) turns and passes them to the
+  LLM so "એ / it / that" resolves correctly. Set `CONTEXT_TURNS=0` to disable.
+- The LLM returns `{"answer", "sources"}`; a source filename that isn't in the
+  retrieved chunks triggers a safe fallback instead of a made-up answer.
+  The UI shows `grounded` / `ungrounded` on the `search query` line.
+- `CACHE_ANSWERS=true` caches identical turns (question + history + model + voice)
+  in memory; a repeat shows `cached` and skips LLM/TTS entirely.
+- `GEMINI_LLM_MODEL` switches between `gemini-3.5-flash-lite` and
+  `gemini-3.5-flash`; cost rates auto-adjust.
+
+Bulbul extras: `SARVAM_TTS_STREAMING=true` uses `/text-to-speech/stream` for
+lower time-to-first-audio; `SARVAM_TTS_PACE`, `SARVAM_TTS_TEMPERATURE`,
+`SARVAM_PREPROCESSING`, and `SARVAM_TTS_DICT_ID` map to Bulbul parameters.
+`enable_preprocessing` is off by default — A/B it against the digit-spaced
+phone number before enabling.
+
 ## TTS provider A/B switch
 
 `.env` → `TTS_PROVIDER=gemini` (default) or `TTS_PROVIDER=sarvam`.

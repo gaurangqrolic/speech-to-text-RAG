@@ -1,4 +1,9 @@
 const $ = (id) => document.getElementById(id);
+let sessionId = sessionStorage.getItem("voice_proto_session");
+if (!sessionId) {
+  sessionId = crypto.randomUUID();
+  sessionStorage.setItem("voice_proto_session", sessionId);
+}
 let recorder = null;
 let chunks = [];
 let startedAt = 0;
@@ -61,7 +66,7 @@ async function run(payload) {
     const res = await fetch("/api/voice/turn", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, sessionId }),
     });
     const raw = await res.text();
     let data;
@@ -80,7 +85,12 @@ async function run(payload) {
     $("sttRaw").textContent =
       data.sttRaw ?? "(text input — STT was skipped)";
     $("answer").textContent = data.answer || "—";
-    $("query").textContent = `search query: ${data.englishQuery}\nspoken as: ${data.spokenText || data.answer}`;
+    $("query").textContent =
+      `search query: ${data.englishQuery}\n` +
+      `spoken as: ${data.spokenText || data.answer}\n` +
+      `turn: ${data.grounded === null ? "?" : data.grounded ? "grounded" : "ungrounded"}` +
+      ` · context: ${data.contextTurns || 0} prior turn(s)` +
+      `${data.timings?.cached ? " · cached" : ""}`;
     $("timings").textContent = `timings: ${JSON.stringify(data.timings)}`;
     $("cost").textContent = `cost (${data.ttsProvider || "?"}): ${JSON.stringify(data.cost)} (approx, INR)`;
     $("chunks").textContent =

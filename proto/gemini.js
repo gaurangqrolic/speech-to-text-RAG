@@ -110,7 +110,13 @@ export async function transcribe({ base64, mimeType = "audio/webm" }) {
   return { text: textOf(r), usage: r.usage, raw: r };
 }
 
-export async function answer({ question, chunks }) {
+function fallbackFor(question) {
+  return /[\u0A80-\u0AFF]/.test(question)
+    ? "ક્ષમા કરશો, આ માહિતી અમારી પાસે નથી. ક્રોલિક ટીમ તમારો સંપર્ક કરશે."
+    : "Sorry, I don't have that information. A Qrolic team member will follow up with you.";
+}
+
+export async function answer({ question, chunks, history = [] }) {
   const context = chunks.length
     ? chunks.map((c, i) => `[${i + 1}] ${c.file}\n${c.text}`).join("\n\n")
     : "(no relevant KB passages retrieved)";
@@ -119,21 +125,56 @@ export async function answer({ question, chunks }) {
     "You are a Qrolic Technologies team member speaking on a call. Speak as 'we', never as a search engine, brochure, or third-party narrator. Never say 'Qrolic Technologies is...' — say what WE do for the caller.",
     "Use ONLY the provided passages for facts. Never invent services, prices, clients, numbers, or capabilities we do not have.",
     "Reply in the caller's language: Gujarati for Gujarati callers, English for English callers. If replying in English, write entirely in English — never insert Gujarati words. At most two short, natural spoken sentences. Answer exactly what was asked, then stop — no filler or generic closings.",
-    "Sound like a person from Qrolic, not a website: acknowledge the caller's specific situation in their own words (for example, cafe owner, moving from another technology, wanting custom functionality), then say what we can do for them. Do NOT recite marketing taglines, page headings, service lists, or phrases like 'exclusive WordPress specialists', 'trusted by leading companies', 'tailored solutions'.",
+    "Sound like a person from Qrolic, not a website: acknowledge the caller's specific situation in their own words, then say what we can do for them. Do NOT recite marketing taglines, page headings, service lists, or phrases like 'exclusive WordPress specialists', 'trusted by leading companies', 'tailored solutions'.",
     "Never say 'according to the passage', 'the knowledge base says', 'services include', or 'our website states'. Just answer directly in our own voice.",
     "If replying in Gujarati, write technical terms in Gujarati script: વેબ ડિઝાઇન, વર્ડપ્રેસ, વૂકોમર્સ, પ્લગઇન, ઇમેઇલ. If replying in English, use plain English words.",
     "Phone numbers: keep them exactly as written in the passages (for example +91 81416 76567). The system converts them to digit-by-digit speech after you reply, so do not try to spell them out yourself.",
     "Scope rule — CRITICAL: if the caller did NOT ask for contact information, do NOT include ANY phone number, email or address in the reply. Never add a closing line like 'call us for more info'. If asked ONLY for the phone number, reply with ONLY the phone number. If asked for contact information/details, give all three (phone, info@qrolic.com, Rajkot address).",
     "If the passages do not contain the answer, say briefly that a Qrolic team member will follow up. Never mention passages, retrieval, or a knowledge base.",
+    "Use the earlier turns only to resolve pronouns such as 'એ', 'તે', 'it', 'that' — do not repeat facts already given unless the caller asks again.",
+    "TONE EXAMPLES — match these exactly:",
+    "Caller: 'તમારી સાઇટ ધીમી છે, શું કરી શકો?' → answer: 'અમે સ્પીડ ઓડિટ કરીને ધીમી સાઇટને ઝડપી બનાવીએ છીએ.'",
+    "Caller: 'How can you help with custom functionality?' → answer: 'We can build custom WordPress plugins for the exact features you need.'",
+    "Caller: 'તમે Tesla માટે કામ કર્યું છે?' → answer: 'આ અંગે અમારી પાસે માહિતી નથી; ક્રોલિક ટીમ તમારો સંપર્ક કરશે.'",
+    "OUTPUT FORMAT: return ONLY a JSON object, no other text: {\"answer\":\"<your spoken reply>\",\"sources\":[\"<filename.md>\",...]}. sources must be filenames copied from the passages, or [] if none were used.",
   ].join(" ");
+
+  const historyText = history.length
+    ? `Earlier turns in this conversation:\n${history
+        .map((t) => `${t.role}: ${t.text}`)
+        .join("\n")}\n\n`
+    : "";
 
   const r = await interaction({
     model: config.models.llm,
     system_instruction: system,
-    input: `Knowledge base passages:\n${context}\n\nCaller question: ${question}`,
+    input: `${historyText}Knowledge base passages:\n${context}\n\nCaller question (current turn): ${question}`,
     generation_config: { max_output_tokens: 300, thinking_level: "minimal" },
   });
-  return { text: textOf(r), usage: r.usage };
+
+  const raw = textOf(r);
+  let parsed = null;
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) parsed = JSON.parse(match[0]);
+  } catch {
+    /* fall back to raw text */
+  }
+
+  if (parsed && typeof parsed.answer === "string" && parsed.answer.trim()) {
+    const files = new Set(chunks.map((c) => c.file));
+    const sources = Array.isArray(parsed.sources) ? parsed.sources : [];
+    const grounded = sources.length === 0 || sources.some((s) => files.has(s));
+    return {
+      text: grounded ? parsed.answer.trim() : fallbackFor(question),
+      usage: r.usage,
+      grounded,
+      sources,
+      rawAnswer: raw,
+    };
+  }
+
+  return { text: raw || fallbackFor(question), usage: r.usage, grounded: null, rawAnswer: raw };
 }
 
 // Deterministic Gujarati → English keyword map for the KB's topic vocabulary.
@@ -190,34 +231,62 @@ async function speakSarvam(text) {
       "Missing SARVAM_API_KEY (or SAMVAAD_API_KEY) needed for Bulbul TTS"
     );
   }
-  const res = await fetch("https://api.sarvam.ai/text-to-speech", {
+  const body = {
+    text,
+    language_code: "gu-IN",
+    model: config.sarvam.model,
+    speaker: config.sarvam.speaker,
+    speech_sample_rate: 24000,
+    output_audio_codec: "wav",
+    pace: config.sarvam.pace,
+    temperature: config.sarvam.temperature,
+    enable_preprocessing: config.sarvam.preprocessing,
+    ...(config.sarvam.dictId ? { dict_id: config.sarvam.dictId } : {}),
+  };
+
+  if (!config.sarvam.streaming) {
+    const res = await fetch("https://api.sarvam.ai/text-to-speech", {
+      method: "POST",
+      headers: {
+        "api-subscription-key": config.sarvam.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const raw = await res.text();
+    let json;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      throw new Error(`Sarvam TTS error ${res.status}: ${raw.slice(0, 300)}`);
+    }
+    if (!res.ok) {
+      const message = json?.error?.message || JSON.stringify(json).slice(0, 300);
+      throw new Error(`Sarvam TTS error ${res.status}: ${message}`);
+    }
+    const audio = Array.isArray(json.audios) ? json.audios.join("") : json.audios;
+    if (!audio) throw new Error("Sarvam TTS returned no audio");
+    return { audio, usage: null, requestId: json.request_id };
+  }
+
+  // Streaming: audio bytes arrive as they are generated (lower time-to-first-audio).
+  const res = await fetch("https://api.sarvam.ai/text-to-speech/stream", {
     method: "POST",
     headers: {
       "api-subscription-key": config.sarvam.apiKey,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      text,
-      language_code: "gu-IN",
-      model: config.sarvam.model,
-      speaker: config.sarvam.speaker,
-      speech_sample_rate: 24000,
-    }),
+    body: JSON.stringify(body),
   });
-  const raw = await res.text();
-  let json;
-  try {
-    json = JSON.parse(raw);
-  } catch {
-    throw new Error(`Sarvam TTS error ${res.status}: ${raw.slice(0, 300)}`);
-  }
   if (!res.ok) {
-    const message = json?.error?.message || JSON.stringify(json).slice(0, 300);
-    throw new Error(`Sarvam TTS error ${res.status}: ${message}`);
+    const raw = await res.text();
+    throw new Error(`Sarvam TTS stream error ${res.status}: ${raw.slice(0, 300)}`);
   }
-  const audio = Array.isArray(json.audios) ? json.audios.join("") : json.audios;
-  if (!audio) throw new Error("Sarvam TTS returned no audio");
-  return { audio, usage: null, requestId: json.request_id };
+  const pieces = [];
+  for await (const chunk of res.body) pieces.push(Buffer.from(chunk));
+  const buf = Buffer.concat(pieces);
+  if (!buf.length) throw new Error("Sarvam TTS stream returned no audio");
+  return { audio: buf.toString("base64"), usage: null, requestId: "(stream)" };
 }
 
 export async function speak(text) {

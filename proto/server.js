@@ -14,6 +14,37 @@ app.use(express.static(path.join(__dirname, "public")));
 const init = rag.buildIndex();
 console.log(`[rag] indexed ${init.files} files / ${init.chunks} chunks`);
 
+// In-memory conversation context and answer cache. Both reset on restart.
+const sessions = new Map(); // sessionId -> [{role, text}]
+const answerCache = new Map(); // key -> cached turn payload
+
+function getHistory(sessionId) {
+  if (!sessionId || !config.contextTurns) return [];
+  const turns = sessions.get(sessionId) || [];
+  return turns.slice(-config.contextTurns);
+}
+
+function pushHistory(sessionId, question, answerText) {
+  if (!sessionId || !config.contextTurns) return;
+  const turns = sessions.get(sessionId) || [];
+  turns.push({ role: "user", text: question });
+  turns.push({ role: "assistant", text: answerText });
+  sessions.set(sessionId, turns.slice(-config.contextTurns * 2));
+}
+
+function cacheKey(question, history) {
+  return JSON.stringify({
+    question,
+    history,
+    llm: config.models.llm,
+    provider: config.ttsProvider,
+    tts:
+      config.ttsProvider === "sarvam"
+        ? `${config.sarvam.model}|${config.sarvam.speaker}|${config.sarvam.streaming}|${config.sarvam.preprocessing}|${config.sarvam.pace}|${config.sarvam.temperature}`
+        : `${config.geminiTtsModel}|${config.voice}`,
+  });
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
@@ -40,6 +71,8 @@ app.post("/api/voice/turn", async (req, res) => {
   const t0 = Date.now();
   try {
     const timings = {};
+    const sessionId = String(req.body.sessionId || "").slice(0, 80);
+    const history = getHistory(sessionId);
     let question = String(req.body.question || "").trim();
     let transcript = question;
     let sttRaw = null;
@@ -136,8 +169,33 @@ app.post("/api/voice/turn", async (req, res) => {
       }
     }
 
+    // Exact-turn cache: repeat questions get a zero-LLM/zero-TTS response.
+    const key = cacheKey(question, history);
+    if (config.cacheAnswers && answerCache.has(key)) {
+      const hit = answerCache.get(key);
+      const cachedCost = {
+        ...(cost.sttInr ? { sttInr: cost.sttInr } : {}),
+        llmInr: hit.llmInr || 0,
+        ttsInr: hit.ttsInr || 0,
+      };
+      cachedCost.totalInr = Number(
+        Object.values(cachedCost).reduce((a, b) => a + Number(b || 0), 0).toFixed(4)
+      );
+      timings.cached = true;
+      timings.totalMs = Date.now() - t0;
+      return res.json({
+        transcript,
+        sttRaw,
+        ...hit,
+        cost: cachedCost,
+        timings,
+        sessionId,
+        contextTurns: history.length,
+      });
+    }
+
     const llmStart = Date.now();
-    const answer = await gemini.answer({ question, chunks });
+    const answer = await gemini.answer({ question, chunks, history });
     timings.llmMs = Date.now() - llmStart;
 
     // Safety net: the LLM sometimes appends a contact line even when it was
@@ -159,7 +217,8 @@ app.post("/api/voice/turn", async (req, res) => {
     const u = answer.usage || {};
     cost.llmInr = Number(
       (
-        ((u.total_input_tokens || 0) * 0.3 + (u.total_output_tokens || 0) * 2.5) /
+        ((u.total_input_tokens || 0) * config.rates.llmUsdPerMIn +
+          (u.total_output_tokens || 0) * config.rates.llmUsdPerMOut) /
         1_000_000 *
         config.inrPerUsd
       ).toFixed(4)
@@ -200,9 +259,7 @@ app.post("/api/voice/turn", async (req, res) => {
       Object.values(cost).reduce((a, b) => a + Number(b || 0), 0).toFixed(4)
     );
 
-    res.json({
-      transcript,
-      sttRaw,
+    const payload = {
       englishQuery,
       answer: answer.text,
       spokenText,
@@ -210,10 +267,24 @@ app.post("/api/voice/turn", async (req, res) => {
       ttsProvider: config.ttsProvider,
       audioSeconds: Number(seconds.toFixed(2)),
       chunks,
+      llmInr: cost.llmInr || 0,
+      ttsInr: cost.ttsInr || 0,
+      grounded: answer.grounded ?? null,
+      sources: answer.sources || [],
+      usage: { llm: u, tts: spoken?.usage || null },
+    };
+    pushHistory(sessionId, question, answer.text);
+    if (config.cacheAnswers && !ttsError) answerCache.set(key, payload);
+
+    res.json({
+      transcript,
+      sttRaw,
+      ...payload,
       timings,
       cost,
+      sessionId,
+      contextTurns: history.length,
       ...(ttsError ? { error: `TTS failed: ${ttsError}` } : {}),
-      usage: { llm: u, tts: spoken?.usage || null },
     });
   } catch (err) {
     console.error("[turn] error:", err.message);
